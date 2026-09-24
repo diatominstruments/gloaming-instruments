@@ -1,0 +1,130 @@
+# gloaming-instruments
+
+Web Audio instruments and effects behind one small, standard API: instruments
+take sequencer input and produce audio, effects take audio and produce
+modified audio. Companion to [GloamingKit](https://github.com/diatominstruments/gloaming-kit)
+— run both on one `AudioContext` and the visualizations hear everything.
+
+No runtime dependencies, and only standard Web Audio nodes (no worklets), so
+everything also renders in an `OfflineAudioContext` for bouncing video.
+
+## Building and running
+
+```bash
+npm install && npm run build
+```
+
+Writes `dist/gloaming-instruments.js`, an IIFE bundle exposing the API on a
+`gloamingInstruments` global. `demo/index.html` needs to be served over http
+(any static server from the repo root), then open `/demo/`.
+
+## Using it
+
+```js
+import { MonoSynth, Drive, Delay, chain } from './src/index.js';
+
+const ctx = new AudioContext();
+const bass = new MonoSynth(ctx, { cutoff: 300, resonance: 18 });
+chain(bass, new Drive(ctx), new Delay(ctx, { time: 0.36 }), ctx.destination);
+
+const t = ctx.currentTime;
+bass.noteOn(36, 1, t);               // MIDI note, velocity 0..1, context time
+bass.noteOn(43, 1, t + 0.25);        // overlapping → slides
+bass.noteOff(36, t + 0.25);
+bass.noteOff(43, t + 0.5);
+bass.setParam('cutoff', 1200, t + 0.5);
+```
+
+Every method takes an `AudioContext` time, so a sequencer can schedule
+ahead of playback. Omitted or past times mean now.
+
+## The API
+
+**Instrument** — sound out on `.output`.
+
+| method | |
+|---|---|
+| `noteOn(note, velocity, time)` | MIDI note number, velocity 0..1 |
+| `noteOff(note, time)` | may be ignored (one-shot drums) |
+| `allNotesOff(time)` | quick cut, for stop and seek |
+
+**Effect** — sound in on `.input`, out on `.output`.
+
+**Both** share:
+
+| member | |
+|---|---|
+| `static id`, `static kind`, `static version` | identity; bump `version` when a change would alter how saved songs sound |
+| `static params` | the param schema (below) |
+| `params` | current values |
+| `setParam(name, value, time)` | clamped to the schema |
+| `toJSON()` / `create(ctx, json)` | `{ id, version, params }`, the form a song stores |
+| `ready` | promise; resolves once samples load |
+| `dispose()` | |
+
+Events must arrive in time order, which any sequencer does naturally.
+
+### Param schemas
+
+```js
+static params = {
+  cutoff: num(30, 16000, 400, { unit: 'Hz', scale: 'log' }),
+  wave:   choice(['sawtooth', 'square'], 'sawtooth'),
+};
+```
+
+The schema is the whole contract. UIs generate their controls from it (the
+demo builds every panel this way), and `create()` clamps untrusted song data
+to it, so a shared song can't drive a module outside the ranges its author
+tested. Params marked `automatable: false` (and all choices) rebuild or
+switch something discretely; set them, but don't sweep them per row.
+
+## What's included
+
+| id | kind | |
+|---|---|---|
+| `mono-synth` | instrument | osc + sub → resonant lowpass with decay env; last-note priority with glide (overlap notes to slide) |
+| `fm-synth` | instrument | 2-op FM, 8 voices, separate modulator envelope |
+| `drum-synth` | instrument | synthesized kick, snare, clap, closed/open hat (choked); notes in `DRUM` |
+| `sampler` | instrument | AudioBuffers across key zones; pitched or kit, one-shot or gated |
+| `filter` | effect | resonant biquad |
+| `drive` | effect | tanh saturation + tone |
+| `delay` | effect | feedback delay, darkening repeats |
+| `reverb` | effect | convolution with a seeded, generated impulse |
+
+Anything random (noise, reverb impulses) is seeded, so a song renders the
+same on every play and every machine.
+
+## Writing your own
+
+Extend `Instrument` or `Effect`, declare `id` and `params`, build your graph
+from `this.params` in the constructor (the base class has already validated
+them), and handle later changes in `applyParam(name, value, time)`. Params
+read only at note-on need no `applyParam` at all. Then `register(MyThing)`
+makes it loadable from song files.
+
+```js
+class Tremolo extends Effect {
+  static id = 'tremolo';
+  static params = { rate: num(0.1, 20, 5, { unit: 'Hz' }), depth: num(0, 1, 0.5) };
+
+  constructor(ctx, params) {
+    super(ctx, params);
+    this.amp = new GainNode(ctx, { gain: 1 - this.params.depth / 2 });
+    this.lfo = new OscillatorNode(ctx, { frequency: this.params.rate });
+    this.depth = new GainNode(ctx, { gain: this.params.depth / 2 });
+    this.lfo.connect(this.depth).connect(this.amp.gain);
+    this.input.connect(this.amp).connect(this.output);
+    this.lfo.start();
+  }
+
+  applyParam(name, value, time) {
+    if (name === 'rate') this.lfo.frequency.setTargetAtTime(value, time, 0.01);
+    if (name === 'depth') {
+      this.depth.gain.setTargetAtTime(value / 2, time, 0.01);
+      this.amp.gain.setTargetAtTime(1 - value / 2, time, 0.01);
+    }
+  }
+}
+register(Tremolo);
+```

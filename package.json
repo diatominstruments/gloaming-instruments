@@ -1,0 +1,16 @@
+{
+  "name": "gloaming-instruments",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "scripts": {
+    "build": "esbuild src/index.js --bundle --format=iife --global-name=gloamingInstruments --outfile=dist/gloaming-instruments.js --sourcemap",
+    "watch": "npm run build -- --watch"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}
