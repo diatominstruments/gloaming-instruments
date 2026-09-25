@@ -19,12 +19,35 @@ const HEADROOM = 8;
  */
 export class Tape extends Effect {
   static id = 'tape';
+  static label = 'Tape';
+  static description = "A tape machine's character: wow and flutter, saturation, head rolloff and hiss.";
+  static tags = ['character', 'distortion', 'modulation'];
   static params = {
-    saturation: num(0, 24, 6, { unit: 'dB' }),
-    wow:        num(0, 1, 0.3),
-    flutter:    num(0, 1, 0.2),
-    tone:       num(1000, 20000, 10000, { unit: 'Hz', scale: 'log' }),
-    hiss:       num(0, 1, 0.15),
+    saturation: num(0, 24, 6, {
+      unit: 'dB', primary: true, label: 'Saturation', description: 'Soft clipping that squashes peaks.',
+    }),
+    wow: num(0, 1, 0.3, {
+      unit: '%', primary: true, label: 'Wow', description: 'Slow pitch drift.',
+    }),
+    flutter: num(0, 1, 0.2, {
+      unit: '%', label: 'Flutter', description: 'Fast pitch wobble.',
+    }),
+    tone: num(1000, 20000, 10000, {
+      unit: 'Hz', scale: 'log', label: 'Tone', description: 'High-frequency rolloff of the heads.',
+    }),
+    hiss: num(0, 1, 0.15, {
+      unit: '%', label: 'Hiss', description: 'Background tape noise.',
+    }),
+  };
+  static groups = [
+    { id: 'signal', label: 'Signal', params: ['saturation', 'tone'] },
+    { id: 'transport', label: 'Transport', params: ['wow', 'flutter'] },
+    { id: 'noise', label: 'Noise', params: ['hiss'] },
+  ];
+  static presets = {
+    'Clean deck': { saturation: 3, wow: 0.1, flutter: 0.05, tone: 16000, hiss: 0.05 },
+    'Worn cassette': { saturation: 9, wow: 0.6, flutter: 0.4, tone: 6000, hiss: 0.35 },
+    'Warped': { saturation: 6, wow: 1, flutter: 0.3, tone: 8000, hiss: 0.2 },
   };
 
   constructor(ctx, params) {

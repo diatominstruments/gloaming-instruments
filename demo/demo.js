@@ -7,6 +7,7 @@
 const {
   MonoSynth, FMSynth, DrumSynth, ModalSynth, FormantSynth,
   Drive, Delay, Reverb, Tape, AutoWah, Orbit, DRUM, chain, parseNote, create,
+  describe, matches, sanitizeParams,
 } = gloamingInstruments;
 
 const STEPS = 16;
@@ -133,51 +134,162 @@ function stop() {
   lineState.clear();
 }
 
-// ---- schema-driven controls ----------------------------------------------------
+// ---- metadata-driven controls --------------------------------------------------
+//
+// Everything below comes from describe(): sections from groups, graphs from
+// group roles, names and tooltips from labels, formatting from units, and
+// the compact view from `primary`. Nothing here knows about any one module.
+
+const el = (tag, props = {}, ...children) => {
+  const node = Object.assign(document.createElement(tag), props);
+  node.append(...children);
+  return node;
+};
 
 function panel(name, module) {
-  const box = document.createElement('fieldset');
-  box.innerHTML = `<legend>${name} <small>${module.constructor.id}</small></legend>`;
+  const info = describe(module.constructor);
+  const refreshers = [];
+  const refresh = () => refreshers.forEach((f) => f());
 
-  for (const [param, spec] of Object.entries(module.constructor.params)) {
-    const row = document.createElement('label');
-    const out = document.createElement('output');
-    let input;
+  const box = el('fieldset', { title: info.description });
+  box.append(el('legend', {}, `${name} `, el('small', {}, info.label)));
 
-    if (spec.type === 'choice') {
-      input = document.createElement('select');
-      for (const v of spec.values) input.add(new Option(v, v, false, v === module.params[param]));
-      input.oninput = () => module.setParam(param, input.value);
-    } else {
-      // Sliders run 0..1000 and map through the schema's scale hint.
-      const log = spec.scale === 'log';
-      const toValue = (x) => (log ? spec.min * (spec.max / spec.min) ** x : spec.min + (spec.max - spec.min) * x);
-      const toSlider = (v) => (log ? Math.log(v / spec.min) / Math.log(spec.max / spec.min) : (v - spec.min) / (spec.max - spec.min));
-      input = Object.assign(document.createElement('input'), { type: 'range', min: 0, max: 1000 });
-      input.value = toSlider(module.params[param]) * 1000;
-      const show = () => { out.textContent = fmt(module.params[param], spec.unit); };
-      input.oninput = () => { module.setParam(param, toValue(input.value / 1000)); show(); };
-      show();
+  // Presets: sanitizeParams fills the params a preset leaves out with defaults.
+  const presets = el('select', { className: 'preset' }, new Option('preset…', ''));
+  for (const preset of Object.keys(info.presets)) presets.add(new Option(preset, preset));
+  presets.oninput = () => {
+    if (!presets.value) return;
+    const params = sanitizeParams(module.constructor, info.presets[presets.value]);
+    for (const [param, value] of Object.entries(params)) module.setParam(param, value);
+    refresh();
+  };
+  box.append(presets);
+
+  for (const group of info.groups) {
+    const section = el('div', { className: 'group' }, el('h3', {}, group.label));
+    const graph = roleGraph(group, module);
+    if (graph) {
+      section.append(graph.node);
+      refreshers.push(graph.draw);
     }
-    row.append(Object.assign(document.createElement('span'), { textContent: param }), input, out);
-    box.append(row);
+    for (const param of group.params) {
+      const spec = info.params[param];
+      const { row, update } = control(module, param, spec, refresh);
+      section.append(row);
+      refreshers.push(update);
+      // Params that only matter in some modes dim when they don't.
+      if (spec.activeWhen) refreshers.push(() => row.classList.toggle('inactive', !matches(spec.activeWhen, module.params)));
+    }
+    box.append(section);
   }
 
   // Round-trip through the song format, to show what a song would store.
-  const save = Object.assign(document.createElement('button'), { textContent: 'Copy JSON' });
+  const save = el('button', { textContent: 'Copy JSON' });
   save.onclick = () => {
     const json = JSON.stringify(module.toJSON());
     navigator.clipboard?.writeText(json);
     console.log(json, create(ctx, JSON.parse(json)));   // proves it rebuilds
   };
   box.append(save);
+  refresh();
   return box;
 }
 
-const fmt = (v, unit = '') => {
-  const s = Math.abs(v) >= 100 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : v.toFixed(3);
-  return unit ? `${s} ${unit}` : s;
-};
+function control(module, param, spec, refresh) {
+  const out = el('output');
+  const row = el('label', { title: spec.description, className: spec.primary ? 'primary' : '' });
+  let input, update;
+
+  if (spec.type === 'choice') {
+    input = el('select');
+    for (const v of spec.values) input.add(new Option(spec.labels?.[v] ?? v, v));
+    input.oninput = () => { module.setParam(param, input.value); refresh(); };
+    update = () => { input.value = module.params[param]; };
+  } else {
+    // Sliders run 0..1000 and map through the schema's scale hint.
+    const log = spec.scale === 'log';
+    const toValue = (x) => (log ? spec.min * (spec.max / spec.min) ** x : spec.min + (spec.max - spec.min) * x);
+    const toSlider = (v) => (log ? Math.log(v / spec.min) / Math.log(spec.max / spec.min) : (v - spec.min) / (spec.max - spec.min));
+    input = el('input', { type: 'range', min: 0, max: 1000 });
+    if (spec.marks) {
+      // Named points become tick marks on the slider.
+      const list = el('datalist', { id: `marks-${Math.random().toString(36).slice(2)}` });
+      for (const m of spec.marks) list.append(new Option(m.label, toSlider(m.value) * 1000));
+      row.append(list);
+      input.setAttribute('list', list.id);
+    }
+    input.oninput = () => { module.setParam(param, toValue(input.value / 1000)); refresh(); };
+    update = () => {
+      input.value = toSlider(module.params[param]) * 1000;
+      out.textContent = fmt(module.params[param], spec);
+    };
+  }
+  row.prepend(el('span', { textContent: spec.label }));
+  row.append(input, out);
+  return { row, update };
+}
+
+/** Units to text: seconds under 1 in ms, Hz over 1000 in kHz, fractions as %. */
+function fmt(v, spec) {
+  const near = spec.marks?.reduce((a, b) => (Math.abs(b.value - v) < Math.abs(a.value - v) ? b : a));
+  if (near) return Math.abs(near.value - v) < 0.05 ? near.label : `${num3(v)} ≈${near.label}`;
+  const sign = spec.center != null && v > spec.center ? '+' : '';
+  switch (spec.unit) {
+    case 's': return v < 1 ? `${num3(v * 1000)} ms` : `${num3(v)} s`;
+    case 'Hz': return v >= 1000 ? `${num3(v / 1000)} kHz` : `${num3(v)} Hz`;
+    case '%': return `${Math.round(v * 100)}%`;
+    case '×': return `×${num3(v)}`;
+    case undefined: return sign + num3(v);
+    default: return `${sign}${num3(v)} ${spec.unit}`;
+  }
+}
+
+const num3 = (v) => (Math.abs(v) >= 100 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : v.toFixed(2));
+
+// ---- role graphs ----------------------------------------------------------------
+//
+// A group's role says what it is; its bind maps the role's slots to params
+// (or fixed { value }s), so the same drawing code serves every module.
+
+function roleGraph(group, module) {
+  const draw = { envelope: drawEnvelope, filter: drawFilter }[group.role];
+  if (!draw) return null;
+  const slot = (name) => {
+    const b = group.bind[name];
+    return typeof b === 'string' ? module.params[b] : b?.value;
+  };
+  const node = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  node.setAttribute('viewBox', '0 0 200 40');
+  node.setAttribute('preserveAspectRatio', 'none');
+  node.classList.add('graph');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  node.append(path);
+  return { node, draw: () => path.setAttribute('d', draw(slot)) };
+}
+
+// Stage widths on a square-root scale, so 2 ms and 2 s both stay visible.
+function drawEnvelope(slot) {
+  const w = (t) => Math.sqrt(t ?? 0);
+  const a = w(slot('attack'));
+  const d = w(slot('decay'));
+  const r = w(slot('release'));
+  const s = slot('sustain') ?? (slot('decay') == null ? 1 : 0);
+  const hold = slot('release') == null ? 0 : 0.6;
+  const scale = 200 / (a + d + hold + r || 1);
+  const y = (level) => 38 - level * 36;
+  const pts = [[0, 0], [a, 1], [a + d, s], [a + d + hold, s], [a + d + hold + r, 0]];
+  return 'M' + pts.map(([x, l]) => `${(x * scale).toFixed(1)},${y(l).toFixed(1)}`).join(' L');
+}
+
+// The browser's own biquad math, on a filter that's never connected.
+const FREQS = Float32Array.from({ length: 100 }, (_, i) => 20 * 1000 ** (i / 99));
+function drawFilter(slot) {
+  const biquad = new BiquadFilterNode(ctx, { type: slot('type'), frequency: slot('cutoff'), Q: slot('resonance') });
+  const mag = new Float32Array(FREQS.length);
+  biquad.getFrequencyResponse(FREQS, mag, new Float32Array(FREQS.length));
+  const y = (m) => Math.min(39, Math.max(1, 20 - (20 * Math.log10(m || 1e-6)) * 0.6));
+  return 'M' + [...mag].map((m, i) => `${(i * 200 / 99).toFixed(1)},${y(m).toFixed(1)}`).join(' L');
+}
 
 // ---- display ----------------------------------------------------------------
 
@@ -218,3 +330,4 @@ function drawScope() {
 buildLights();
 drawScope();
 document.getElementById('play').onclick = () => (timer ? stop() : start());
+document.getElementById('compact').oninput = (e) => document.body.classList.toggle('compact', e.target.checked);

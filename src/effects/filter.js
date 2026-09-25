@@ -4,10 +4,31 @@ import { SMOOTH } from '../util.js';
 /** Filter — a single resonant biquad. Sweep `cutoff` from the sequencer for filter moves. */
 export class Filter extends Effect {
   static id = 'filter';
+  static label = 'Filter';
+  static description = 'A single resonant filter. Sweep the cutoff for filter moves.';
+  static tags = ['filter'];
   static params = {
-    type:      choice(['lowpass', 'highpass', 'bandpass', 'notch'], 'lowpass'),
-    cutoff:    num(20, 20000, 2000, { unit: 'Hz', scale: 'log' }),
-    resonance: num(0, 20, 1),
+    type: choice(['lowpass', 'highpass', 'bandpass', 'notch'], 'lowpass', {
+      label: 'Type', description: 'Which part of the spectrum passes through.',
+      labels: { lowpass: 'Low-pass', highpass: 'High-pass', bandpass: 'Band-pass', notch: 'Notch' },
+    }),
+    cutoff: num(20, 20000, 2000, {
+      unit: 'Hz', scale: 'log', primary: true, label: 'Cutoff', description: 'Where the filter acts.',
+    }),
+    resonance: num(0, 20, 1, {
+      primary: true, label: 'Resonance', description: 'Emphasis at the cutoff.',
+    }),
+  };
+  static groups = [
+    {
+      id: 'filter', label: 'Filter', params: ['type', 'cutoff', 'resonance'],
+      role: 'filter', bind: { type: 'type', cutoff: 'cutoff', resonance: 'resonance' },
+    },
+  ];
+  static presets = {
+    'Muffled': { type: 'lowpass', cutoff: 500, resonance: 0.5 },
+    'Thin': { type: 'highpass', cutoff: 800, resonance: 1 },
+    'Telephone': { type: 'bandpass', cutoff: 1500, resonance: 2 },
   };
 
   constructor(ctx, params) {

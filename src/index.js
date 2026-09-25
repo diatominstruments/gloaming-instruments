@@ -1,4 +1,4 @@
-import { Module } from './module.js';
+import { Module, describe } from './module.js';
 import { MonoSynth } from './instruments/mono-synth.js';
 import { FMSynth } from './instruments/fm-synth.js';
 import { DrumSynth } from './instruments/drum-synth.js';
@@ -13,8 +13,10 @@ import { Tape } from './effects/tape.js';
 import { AutoWah } from './effects/auto-wah.js';
 import { Orbit } from './effects/orbit.js';
 
-export { Module, Instrument, Effect, chain, num, choice, sanitizeParams } from './module.js';
-export { mtof, parseNote } from './util.js';
+export {
+  Module, Instrument, Effect, chain, num, choice, sanitizeParams, describe, matches, UNITS,
+} from './module.js';
+export { mtof, parseNote, noteName } from './util.js';
 export { DRUM } from './instruments/drum-synth.js';
 export {
   MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth,
@@ -56,6 +58,14 @@ export function register(M) {
   }
   if (registry.has(M.id)) throw new Error(`register: '${M.id}' is already registered`);
   registry.set(M.id, M);
+}
+
+/**
+ * Every registered module's metadata (see `describe`) as one plain-JSON
+ * list, for apps that build pickers and panels without importing classes.
+ */
+export function manifest() {
+  return [...registry.values()].map(describe);
 }
 
 /**

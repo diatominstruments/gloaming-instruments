@@ -28,17 +28,55 @@ const VOWELS = [
  */
 export class FormantSynth extends Instrument {
   static id = 'formant-synth';
+  static label = 'Formant Synth';
+  static description = 'Detuned sawtooths sung through vowel formants. Sweep the vowel to make it talk.';
+  static tags = ['voice', 'pad'];
+  static polyphony = MAX_VOICES;
   static params = {
-    wave:    choice(['sawtooth', 'square'], 'sawtooth'),
-    vowel:   num(0, 4, 0),
-    width:   num(0.3, 3, 1),
-    spread:  num(0, 50, 12, { unit: 'ct' }),
-    vibrato: num(0, 100, 0, { unit: 'ct' }),
-    attack:  num(0.001, 4, 0.08, { unit: 's', scale: 'log' }),
-    decay:   num(0.01, 4, 0.5, { unit: 's', scale: 'log' }),
-    sustain: num(0, 1, 0.7),
-    release: num(0.005, 8, 0.4, { unit: 's', scale: 'log' }),
-    gain:    num(0, 1, 0.5),
+    wave: choice(['sawtooth', 'square'], 'sawtooth', {
+      label: 'Wave', description: 'Shape of the oscillators; square is hollower.',
+      labels: { sawtooth: 'Saw', square: 'Square' },
+    }),
+    vowel: num(0, VOWELS.length - 1, 0, {
+      primary: true, label: 'Vowel', description: 'Vowel shape, blending smoothly between neighbours.',
+      marks: ['a', 'e', 'i', 'o', 'u'].map((label, value) => ({ value, label })),
+    }),
+    width: num(0.3, 3, 1, {
+      unit: '×', label: 'Width', description: 'Formant bandwidth: narrow is sharper and more vocal, wide is softer.',
+    }),
+    spread: num(0, 50, 12, {
+      unit: 'ct', primary: true, label: 'Spread', description: 'Detune between the two oscillators.',
+    }),
+    vibrato: num(0, 100, 0, {
+      unit: 'ct', label: 'Vibrato', description: 'Depth of the pitch wobble.',
+    }),
+    attack: num(0.001, 4, 0.08, {
+      unit: 's', scale: 'log', label: 'Attack', description: 'Fade-in at the start of a note.',
+    }),
+    decay: num(0.01, 4, 0.5, {
+      unit: 's', scale: 'log', label: 'Decay', description: 'Fall from the peak to the sustain level.',
+    }),
+    sustain: num(0, 1, 0.7, {
+      unit: '%', label: 'Sustain', description: 'Level held while the note is held.',
+    }),
+    release: num(0.005, 8, 0.4, {
+      unit: 's', scale: 'log', label: 'Release', description: 'Fade-out after the note ends.',
+    }),
+    gain: num(0, 1, 0.5, { unit: '%', label: 'Level', description: 'Output level.' }),
+  };
+  static groups = [
+    { id: 'source', label: 'Voices', params: ['wave', 'spread', 'vibrato'] },
+    { id: 'vowel', label: 'Vowel', params: ['vowel', 'width'] },
+    {
+      id: 'amp', label: 'Amp envelope', params: ['attack', 'decay', 'sustain', 'release'],
+      role: 'envelope', bind: { attack: 'attack', decay: 'decay', sustain: 'sustain', release: 'release' },
+    },
+    { id: 'output', label: 'Output', params: ['gain'] },
+  ];
+  static presets = {
+    'Choir': { vowel: 0, spread: 18, vibrato: 10, attack: 0.4, sustain: 0.8, release: 1.2 },
+    'Talker': { vowel: 2, width: 0.6, spread: 6, attack: 0.01, sustain: 0.9, release: 0.1 },
+    'Ooh pad': { vowel: 4, width: 1.5, spread: 25, vibrato: 6, attack: 1, sustain: 0.8, release: 2 },
   };
 
   constructor(ctx, params) {

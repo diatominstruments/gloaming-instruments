@@ -15,16 +15,55 @@ const MAX_VOICES = 8;
 export class FMSynth extends Instrument {
   static id = 'fm-synth';
   static label = 'FM Synth';
+  static description = 'Two-operator FM, 8 voices. Bells, electric pianos and metallic plucks.';
+  static tags = ['keys', 'bell', 'pluck'];
+  static polyphony = MAX_VOICES;
   static params = {
-    ratio:      num(0.5, 8, 3.5),
-    index:      num(0, 20, 4),
-    modDecay:   num(0.01, 4, 0.8, { unit: 's', scale: 'log' }),
-    modSustain: num(0, 1, 0.1),
-    attack:     num(0.001, 2, 0.002, { unit: 's', scale: 'log' }),
-    decay:      num(0.01, 8, 1.5, { unit: 's', scale: 'log' }),
-    sustain:    num(0, 1, 0),
-    release:    num(0.005, 8, 0.8, { unit: 's', scale: 'log' }),
-    gain:       num(0, 1, 0.3),
+    ratio: num(0.5, 8, 3.5, {
+      unit: '×', primary: true, label: 'Ratio',
+      description: 'Modulator pitch as a multiple of the note: whole numbers are harmonic, fractions clangorous.',
+    }),
+    index: num(0, 20, 4, {
+      primary: true, label: 'Index', description: 'Modulation depth: how bright and complex each note starts.',
+    }),
+    modDecay: num(0.01, 4, 0.8, {
+      unit: 's', scale: 'log', label: 'Decay', description: 'How quickly the brightness fades.',
+    }),
+    modSustain: num(0, 1, 0.1, {
+      unit: '%', label: 'Sustain', description: 'Brightness held while the note is held.',
+    }),
+    attack: num(0.001, 2, 0.002, {
+      unit: 's', scale: 'log', label: 'Attack', description: 'Fade-in at the start of a note.',
+    }),
+    decay: num(0.01, 8, 1.5, {
+      unit: 's', scale: 'log', primary: true,
+      label: 'Decay', description: 'Fall from the peak to the sustain level.',
+    }),
+    sustain: num(0, 1, 0, {
+      unit: '%', label: 'Sustain', description: 'Level held while the note is held.',
+    }),
+    release: num(0.005, 8, 0.8, {
+      unit: 's', scale: 'log', label: 'Release', description: 'Fade-out after the note ends.',
+    }),
+    gain: num(0, 1, 0.3, { unit: '%', label: 'Level', description: 'Output level.' }),
+  };
+  static groups = [
+    { id: 'mod', label: 'Modulator', params: ['ratio', 'index'] },
+    {
+      id: 'modEnv', label: 'Mod envelope', params: ['modDecay', 'modSustain'],
+      role: 'envelope', bind: { attack: 'attack', decay: 'modDecay', sustain: 'modSustain', amount: 'index' },
+    },
+    {
+      id: 'amp', label: 'Amp envelope', params: ['attack', 'decay', 'sustain', 'release'],
+      role: 'envelope', bind: { attack: 'attack', decay: 'decay', sustain: 'sustain', release: 'release' },
+    },
+    { id: 'output', label: 'Output', params: ['gain'] },
+  ];
+  static presets = {
+    'Bell': { ratio: 3.5, index: 6, modDecay: 1.5, modSustain: 0, decay: 4, sustain: 0, release: 2 },
+    'E-piano': { ratio: 1, index: 2.5, modDecay: 0.6, modSustain: 0.1, decay: 2.5, sustain: 0.3, release: 0.5 },
+    'Pluck': { ratio: 2, index: 5, modDecay: 0.15, modSustain: 0, decay: 0.4, sustain: 0, release: 0.2 },
+    'Metallic': { ratio: 1.41, index: 10, modDecay: 0.8, modSustain: 0.2, decay: 1.5, sustain: 0, release: 1 },
   };
 
   constructor(ctx, params) {

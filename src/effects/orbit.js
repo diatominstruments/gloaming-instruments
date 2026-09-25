@@ -13,10 +13,27 @@ import { SMOOTH } from '../util.js';
  */
 export class Orbit extends Effect {
   static id = 'orbit';
+  static label = 'Orbit';
+  static description = 'Circles the sound around the listener. For headphones.';
+  static tags = ['space', 'modulation'];
   static params = {
-    rate:   num(0.02, 8, 0.25, { unit: 'Hz', scale: 'log' }),
-    radius: num(0.2, 5, 1.5, { unit: 'm' }),
-    height: num(-2, 2, 0, { unit: 'm' }),
+    rate: num(0.02, 8, 0.25, {
+      unit: 'Hz', scale: 'log', primary: true, label: 'Rate', description: 'Orbits per second.',
+    }),
+    radius: num(0.2, 5, 1.5, {
+      unit: 'm', primary: true, label: 'Distance', description: 'How far out the orbit runs; further is quieter.',
+    }),
+    height: num(-2, 2, 0, {
+      unit: 'm', center: 0, label: 'Height', description: 'Above or below ear level.',
+    }),
+  };
+  static groups = [
+    { id: 'orbit', label: 'Orbit', params: ['rate', 'radius', 'height'] },
+  ];
+  static presets = {
+    'Slow drift': { rate: 0.08, radius: 2, height: 0 },
+    'Close circle': { rate: 0.3, radius: 0.6, height: 0 },
+    'Spin': { rate: 3, radius: 1, height: 0.5 },
   };
 
   constructor(ctx, params) {

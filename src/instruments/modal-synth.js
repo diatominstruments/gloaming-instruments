@@ -35,15 +35,49 @@ const MATERIALS = {
  */
 export class ModalSynth extends Instrument {
   static id = 'modal-synth';
+  static label = 'Modal Synth';
+  static description = 'Struck bars, bowls and bells: a bank of resonators per note, rung by a mallet.';
+  static tags = ['mallet', 'bell', 'percussion'];
+  static polyphony = MAX_VOICES;
+  static gated = { mode: 'gate' };
   static params = {
-    material:   choice(Object.keys(MATERIALS), 'glass'),
-    mode:       choice(['one-shot', 'gate'], 'one-shot'),
-    strike:     num(0, 1, 0.6),
-    brightness: num(0, 1, 0.5),
-    decay:      num(0.05, 10, 2, { unit: 's', scale: 'log' }),
-    damping:    num(0, 1, 0.4),
-    release:    num(0.005, 2, 0.05, { unit: 's', scale: 'log' }),
-    gain:       num(0, 1, 0.6),
+    material: choice(Object.keys(MATERIALS), 'glass', {
+      primary: true, label: 'Material', description: 'What is struck, which sets the pattern of overtones.',
+      labels: { wood: 'Wood', glass: 'Glass', steel: 'Steel', bell: 'Bell' },
+    }),
+    mode: choice(['one-shot', 'gate'], 'one-shot', {
+      label: 'Mode', description: 'One-shot lets each strike ring out; gated damps it at note off.',
+      labels: { 'one-shot': 'One-shot', gate: 'Gated' },
+    }),
+    strike: num(0, 1, 0.6, {
+      unit: '%', label: 'Hardness', description: "Mallet hardness: soft mallets don't reach the upper overtones.",
+    }),
+    brightness: num(0, 1, 0.5, {
+      unit: '%', label: 'Brightness', description: 'Level of the upper overtones against the fundamental.',
+    }),
+    decay: num(0.05, 10, 2, {
+      unit: 's', scale: 'log', primary: true, label: 'Decay', description: 'Ring time of the fundamental.',
+    }),
+    damping: num(0, 1, 0.4, {
+      unit: '%', label: 'Damping', description: 'How much faster the upper overtones die away.',
+    }),
+    release: num(0.005, 2, 0.05, {
+      unit: 's', scale: 'log', activeWhen: { mode: 'gate' },
+      label: 'Release', description: 'How quickly a note is damped at note off.',
+    }),
+    gain: num(0, 1, 0.6, { unit: '%', label: 'Level', description: 'Output level.' }),
+  };
+  static groups = [
+    { id: 'body', label: 'Body', params: ['material', 'decay', 'damping', 'brightness'] },
+    { id: 'mallet', label: 'Mallet', params: ['strike'] },
+    { id: 'note', label: 'Note', params: ['mode', 'release'] },
+    { id: 'output', label: 'Output', params: ['gain'] },
+  ];
+  static presets = {
+    'Marimba': { material: 'wood', strike: 0.4, brightness: 0.4, decay: 0.8, damping: 0.5 },
+    'Glass bowl': { material: 'glass', strike: 0.3, brightness: 0.6, decay: 6, damping: 0.2 },
+    'Glockenspiel': { material: 'steel', strike: 0.8, brightness: 0.7, decay: 3, damping: 0.3 },
+    'Church bell': { material: 'bell', strike: 0.7, brightness: 0.6, decay: 8, damping: 0.35 },
   };
 
   constructor(ctx, params) {

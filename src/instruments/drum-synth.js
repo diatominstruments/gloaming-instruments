@@ -18,6 +18,10 @@ export const DRUM = Object.freeze({
  */
 export class DrumSynth extends Instrument {
   static id = 'drum-synth';
+  static label = 'Drum Synth';
+  static description = 'A synthesized kit: kick, snare, clap and hats, no samples needed.';
+  static tags = ['drums', 'percussion'];
+  static gated = false;
   static keys = {
     [DRUM.KICK]: 'Kick',
     [DRUM.SNARE]: 'Snare',
@@ -26,17 +30,55 @@ export class DrumSynth extends Instrument {
     [DRUM.OPEN_HAT]: 'Open hat',
   };
   static params = {
-    kickTune:   num(30, 120, 48, { unit: 'Hz' }),
-    kickPunch:  num(0, 1, 0.6),
-    kickDecay:  num(0.05, 2, 0.45, { unit: 's', scale: 'log' }),
-    snareTune:  num(100, 400, 190, { unit: 'Hz' }),
-    snareSnap:  num(0, 1, 0.7),
-    snareDecay: num(0.05, 1, 0.2, { unit: 's', scale: 'log' }),
-    clapDecay:  num(0.05, 1, 0.25, { unit: 's', scale: 'log' }),
-    hatTone:    num(2000, 14000, 7000, { unit: 'Hz', scale: 'log' }),
-    hatDecay:   num(0.01, 0.5, 0.05, { unit: 's', scale: 'log' }),
-    openDecay:  num(0.05, 2, 0.4, { unit: 's', scale: 'log' }),
-    gain:       num(0, 1, 0.8),
+    kickTune: num(30, 120, 48, {
+      unit: 'Hz', primary: true, label: 'Tune', description: 'Pitch the kick settles to.',
+    }),
+    kickPunch: num(0, 1, 0.6, {
+      unit: '%', label: 'Punch', description: 'Pitch sweep at the start of the hit.',
+    }),
+    kickDecay: num(0.05, 2, 0.45, {
+      unit: 's', scale: 'log', primary: true, label: 'Decay', description: 'How long the kick booms.',
+    }),
+    snareTune: num(100, 400, 190, {
+      unit: 'Hz', label: 'Tune', description: 'Pitch of the snare body.',
+    }),
+    snareSnap: num(0, 1, 0.7, {
+      unit: '%', label: 'Snap', description: 'Noise rattle against the tuned body.',
+    }),
+    snareDecay: num(0.05, 1, 0.2, {
+      unit: 's', scale: 'log', label: 'Decay', description: 'How long the snare rings.',
+    }),
+    clapDecay: num(0.05, 1, 0.25, {
+      unit: 's', scale: 'log', label: 'Decay', description: 'Length of the clap tail.',
+    }),
+    hatTone: num(2000, 14000, 7000, {
+      unit: 'Hz', scale: 'log', primary: true, label: 'Tone', description: 'Brightness of both hats.',
+    }),
+    hatDecay: num(0.01, 0.5, 0.05, {
+      unit: 's', scale: 'log', label: 'Closed decay', description: 'Length of the closed hat.',
+    }),
+    openDecay: num(0.05, 2, 0.4, {
+      unit: 's', scale: 'log', label: 'Open decay', description: 'Length of the open hat, unless a closed hat chokes it.',
+    }),
+    gain: num(0, 1, 0.8, { unit: '%', label: 'Level', description: 'Output level.' }),
+  };
+  static groups = [
+    { id: 'kick', label: 'Kick', notes: [DRUM.KICK], params: ['kickTune', 'kickPunch', 'kickDecay'] },
+    { id: 'snare', label: 'Snare', notes: [DRUM.SNARE], params: ['snareTune', 'snareSnap', 'snareDecay'] },
+    { id: 'clap', label: 'Clap', notes: [DRUM.CLAP], params: ['clapDecay'] },
+    {
+      id: 'hats', label: 'Hats', notes: [DRUM.CLOSED_HAT, DRUM.OPEN_HAT],
+      params: ['hatTone', 'hatDecay', 'openDecay'],
+    },
+    { id: 'output', label: 'Output', params: ['gain'] },
+  ];
+  static presets = {
+    'Boom': { kickTune: 45, kickPunch: 0.4, kickDecay: 1.2, snareTune: 180, snareSnap: 0.6, hatTone: 8000 },
+    'Tight': {
+      kickPunch: 0.8, kickDecay: 0.25, snareSnap: 0.8, snareDecay: 0.12,
+      clapDecay: 0.15, hatDecay: 0.03, openDecay: 0.25,
+    },
+    'Lo-fi': { kickTune: 55, kickPunch: 0.3, snareTune: 150, snareSnap: 0.5, hatTone: 4000, openDecay: 0.6 },
   };
 
   constructor(ctx, params) {

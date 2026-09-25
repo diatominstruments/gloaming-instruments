@@ -27,6 +27,13 @@
   select { font: inherit; background: var(--bg); color: var(--fg); border: 1px solid var(--dim); }
   output { text-align: right; color: var(--dim); }
   fieldset button { margin-top: 6px; }
+  .preset { width: 100%; margin-bottom: 4px; }
+  .group h3 { font-size: 11px; font-weight: normal; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); margin: 8px 0 2px; }
+  .graph { display: block; width: 100%; height: 40px; background: var(--bg); margin-bottom: 4px; }
+  .graph path { fill: none; stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+  label.primary span { color: var(--fg); font-weight: bold; }
+  label.inactive { opacity: 0.35; }
+  body.compact fieldset label:not(.primary), body.compact .group h3, body.compact .graph, body.compact .preset { display: none; }
 </style>
 </head>
 <body>
@@ -34,6 +41,7 @@
   <h1>gloaming-instruments</h1>
   <button id="play">Play / Stop</button>
   <label style="grid-template-columns: auto 60px">BPM <input id="bpm" type="number" value="125" min="60" max="200"></label>
+  <label style="grid-template-columns: auto auto">Compact <input id="compact" type="checkbox"></label>
   <div id="steps"></div>
 </header>
 <canvas id="scope" width="1200" height="80"></canvas>

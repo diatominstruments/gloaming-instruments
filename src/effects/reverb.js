@@ -11,11 +11,31 @@ import { rng, SMOOTH } from '../util.js';
  */
 export class Reverb extends Effect {
   static id = 'reverb';
+  static label = 'Reverb';
+  static description = 'Convolution reverb with a generated room that sounds the same everywhere.';
+  static tags = ['space'];
   static params = {
-    size:     num(0.2, 8, 2, { unit: 's', automatable: false }),
-    damping:  num(0, 1, 0.4),
-    preDelay: num(0, 0.2, 0.02, { unit: 's' }),
-    mix:      num(0, 1, 0.3),
+    size: num(0.2, 8, 2, {
+      unit: 's', automatable: false, primary: true, label: 'Size', description: 'How long the room takes to die away.',
+    }),
+    damping: num(0, 1, 0.4, {
+      unit: '%', label: 'Damping', description: 'Darkens the tail.',
+    }),
+    preDelay: num(0, 0.2, 0.02, {
+      unit: 's', label: 'Pre-delay', description: 'Gap before the reverb starts.',
+    }),
+    mix: num(0, 1, 0.3, {
+      unit: '%', primary: true, label: 'Mix', description: 'Reverb against the dry signal.',
+    }),
+  };
+  static groups = [
+    { id: 'room', label: 'Room', params: ['size', 'damping', 'preDelay'] },
+    { id: 'output', label: 'Output', params: ['mix'] },
+  ];
+  static presets = {
+    'Room': { size: 0.8, damping: 0.5, preDelay: 0.01, mix: 0.2 },
+    'Hall': { size: 3.5, damping: 0.4, preDelay: 0.03, mix: 0.3 },
+    'Cathedral': { size: 7, damping: 0.3, preDelay: 0.05, mix: 0.4 },
   };
 
   constructor(ctx, params) {

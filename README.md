@@ -79,6 +79,63 @@ to it, so a shared song can't drive a module outside the ranges its author
 tested. Params marked `automatable: false` (and all choices) rebuild or
 switch something discretely; set them, but don't sweep them per row.
 
+### Display metadata
+
+On top of the schema, every module describes itself for UIs. None of it
+affects the sound, and none of it says how to draw anything: it's
+structure and meaning, for any app to present in its own way.
+`describe(Module)` returns it all as plain JSON with defaults filled in,
+and `manifest()` does the same for every registered module.
+
+```js
+static label = 'Mono Synth';
+static description = 'One oscillator plus a sub through a resonant lowpass…';
+static tags = ['bass', 'lead'];
+static polyphony = 1;                 // instruments: null = no fixed limit
+static gated = true;                  // does noteOff end a note? or { mode: 'gate' }
+
+static params = {
+  cutoff: num(30, 16000, 400, {
+    unit: 'Hz', scale: 'log', primary: true,
+    label: 'Cutoff', description: 'Filter frequency before the envelope opens it.',
+  }),
+  …
+};
+
+static groups = [
+  { id: 'filter', label: 'Filter', params: ['cutoff', 'resonance'],
+    role: 'filter', bind: { type: { value: 'lowpass' }, cutoff: 'cutoff', resonance: 'resonance' } },
+  { id: 'amp', label: 'Amp envelope', params: ['attack', 'decay', 'sustain', 'release'],
+    role: 'envelope', bind: { attack: 'attack', decay: 'decay', sustain: 'sustain', release: 'release' } },
+  …
+];
+
+static presets = { 'Acid': { cutoff: 300, resonance: 18, envMod: 3.5 }, … };
+```
+
+| on a param | |
+|---|---|
+| `label`, `description` | display name (read under its group heading) and a sentence for tooltips |
+| `unit` | one of `UNITS`: `Hz s dB st ct oct m % ×`; `%` values are 0..1 fractions |
+| `labels` | choices: display names for the stored values |
+| `marks` | named points on a range, `[{ value, label }]` (a formant synth's vowels) |
+| `center` | where a control rests and fills from, for ranges straddling zero |
+| `primary` | the two or three params to show when there's only room for a few |
+| `activeWhen` | `{ mode: 'gate' }`: only has an effect while those choices are set |
+
+| on a module | |
+|---|---|
+| `groups` | params as ordered sections; each param in exactly one |
+| group `role` + `bind` | what a section *is*, so an app can draw an envelope or a filter curve instead of knobs; `bind` maps the role's slots to params or fixed `{ value }`s. Roles: `envelope` (attack, decay, sustain, release, amount), `filter` (type, cutoff, resonance) |
+| group `notes` | for instruments with `keys`: the notes a section shapes (the kick's params) |
+| `presets` | partial params; `sanitizeParams(M, M.presets[name])` gives the full set |
+| `keys` | also on instances, since a sampler's depend on what it loaded |
+
+`matches(condition, params)` evaluates `activeWhen` and `gated`.
+`npm test` checks every module's metadata against its schema, so groups
+and presets can't drift as params change. The demo builds its panels
+from nothing but `describe()`.
+
 ## What's included
 
 | id | kind | |
@@ -106,7 +163,8 @@ Extend `Instrument` or `Effect`, declare `id` and `params`, build your graph
 from `this.params` in the constructor (the base class has already validated
 them), and handle later changes in `applyParam(name, value, time)`. Params
 read only at note-on need no `applyParam` at all. Then `register(MyThing)`
-makes it loadable from song files.
+makes it loadable from song files. Display metadata is optional: without
+it, labels come from param names and every param lands in one group.
 
 ```js
 class Tremolo extends Effect {

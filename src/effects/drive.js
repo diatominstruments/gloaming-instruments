@@ -19,10 +19,26 @@ function tanhCurve() {
 /** Drive — tanh saturation with a tone control. Warm at low settings, fuzz at high ones. */
 export class Drive extends Effect {
   static id = 'drive';
+  static label = 'Drive';
+  static description = 'Tanh saturation with a tone control: warm at low settings, fuzz at high ones.';
+  static tags = ['distortion'];
   static params = {
-    drive: num(0, 40, 12, { unit: 'dB' }),
-    tone:  num(500, 16000, 6000, { unit: 'Hz', scale: 'log' }),
-    level: num(0, 1, 0.6),
+    drive: num(0, 40, 12, {
+      unit: 'dB', primary: true, label: 'Drive', description: 'How hard the signal is pushed into saturation.',
+    }),
+    tone: num(500, 16000, 6000, {
+      unit: 'Hz', scale: 'log', primary: true, label: 'Tone', description: 'Lowpass after the saturation, to tame fizz.',
+    }),
+    level: num(0, 1, 0.6, { unit: '%', label: 'Level', description: 'Output level.' }),
+  };
+  static groups = [
+    { id: 'drive', label: 'Drive', params: ['drive', 'tone'] },
+    { id: 'output', label: 'Output', params: ['level'] },
+  ];
+  static presets = {
+    'Warm': { drive: 4, tone: 8000, level: 0.8 },
+    'Crunch': { drive: 16, tone: 5000, level: 0.5 },
+    'Fuzz': { drive: 36, tone: 3000, level: 0.35 },
   };
 
   constructor(ctx, params) {

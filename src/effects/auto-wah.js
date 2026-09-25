@@ -15,14 +15,43 @@ import { SMOOTH } from '../util.js';
  */
 export class AutoWah extends Effect {
   static id = 'auto-wah';
+  static label = 'Auto-Wah';
+  static description = 'A resonant filter that opens as the input gets louder.';
+  static tags = ['filter', 'modulation'];
   static params = {
-    type:        choice(['lowpass', 'bandpass'], 'lowpass'),
-    cutoff:      num(50, 5000, 250, { unit: 'Hz', scale: 'log' }),
-    resonance:   num(0, 20, 8),
-    depth:       num(0, 5, 3, { unit: 'oct' }),
-    sensitivity: num(0, 40, 12, { unit: 'dB' }),
-    response:    num(0.005, 0.5, 0.04, { unit: 's', scale: 'log' }),
-    mix:         num(0, 1, 1),
+    type: choice(['lowpass', 'bandpass'], 'lowpass', {
+      label: 'Type', description: 'Low-pass is rounder; band-pass quacks.',
+      labels: { lowpass: 'Low-pass', bandpass: 'Band-pass' },
+    }),
+    cutoff: num(50, 5000, 250, {
+      unit: 'Hz', scale: 'log', label: 'Cutoff', description: 'Where the filter rests when the input is quiet.',
+    }),
+    resonance: num(0, 20, 8, {
+      primary: true, label: 'Resonance', description: 'Emphasis at the cutoff.',
+    }),
+    depth: num(0, 5, 3, {
+      unit: 'oct', primary: true, label: 'Depth', description: 'How far loud input opens the filter.',
+    }),
+    sensitivity: num(0, 40, 12, {
+      unit: 'dB', primary: true, label: 'Sensitivity', description: 'Higher opens the filter fully on quieter input.',
+    }),
+    response: num(0.005, 0.5, 0.04, {
+      unit: 's', scale: 'log', label: 'Response', description: 'How quickly the filter follows the input.',
+    }),
+    mix: num(0, 1, 1, { unit: '%', label: 'Mix', description: 'Filtered against the dry signal.' }),
+  };
+  static groups = [
+    {
+      id: 'filter', label: 'Filter', params: ['type', 'cutoff', 'resonance'],
+      role: 'filter', bind: { type: 'type', cutoff: 'cutoff', resonance: 'resonance' },
+    },
+    { id: 'follower', label: 'Envelope follower', params: ['depth', 'sensitivity', 'response'] },
+    { id: 'output', label: 'Output', params: ['mix'] },
+  ];
+  static presets = {
+    'Funk': { type: 'bandpass', cutoff: 400, resonance: 10, depth: 3, sensitivity: 18, response: 0.03, mix: 1 },
+    'Quack': { type: 'bandpass', cutoff: 250, resonance: 14, depth: 4, sensitivity: 24, response: 0.015, mix: 1 },
+    'Subtle': { type: 'lowpass', cutoff: 800, resonance: 4, depth: 1.5, sensitivity: 8, response: 0.08, mix: 0.6 },
   };
 
   constructor(ctx, params) {

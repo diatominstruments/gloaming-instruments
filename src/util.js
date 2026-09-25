@@ -18,6 +18,11 @@ export function parseNote(name) {
   return (Number(m[3]) + 1) * 12 + SEMITONES[m[1]] + (m[2] === '#' ? 1 : 0);
 }
 
+const NAMES = ['C-', 'C#', 'D-', 'D#', 'E-', 'F-', 'F#', 'G-', 'G#', 'A-', 'A#', 'B-'];
+
+/** MIDI number → tracker note name, the inverse of parseNote: 61 is 'C#4'. */
+export const noteName = (note) => NAMES[note % 12] + (Math.floor(note / 12) - 1);
+
 /**
  * Seeded PRNG (mulberry32). Everything noisy is generated from this, so a
  * song renders the same on every play and every machine — which matters when
