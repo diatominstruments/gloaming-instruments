@@ -5,7 +5,8 @@
  * builder.
  */
 const {
-  MonoSynth, FMSynth, DrumSynth, Drive, Delay, Reverb, DRUM, chain, parseNote, create,
+  MonoSynth, FMSynth, DrumSynth, ModalSynth, FormantSynth,
+  Drive, Delay, Reverb, Tape, AutoWah, Orbit, DRUM, chain, parseNote, create,
 } = gloamingInstruments;
 
 const STEPS = 16;
@@ -22,6 +23,14 @@ const PATTERN = {
   bells: [
     'G-5 --- --- --- --- --- --- --- D#5 --- --- --- --- --- --- ===',
     'C-5 --- --- --- --- --- --- --- A#4 --- --- --- --- --- --- ===',
+  ],
+  mallets: [
+    '--- --- C-6 --- --- --- G-5 --- --- --- D#6 --- --- G-6 --- ---',
+  ],
+  voice: [
+    'C-3 --- --- --- --- --- --- === A#2 --- --- --- --- --- --- ===',
+    'G-3 --- --- --- --- --- --- === F-3 --- --- --- --- --- --- ===',
+    'D#4 --- --- --- --- --- --- === D-4 --- --- --- --- --- --- ===',
   ],
   drums: {
     [DRUM.KICK]:       'x...x...x...x..o',
@@ -40,20 +49,28 @@ function buildRig() {
   master = new GainNode(ctx, { gain: 0.8 });
   const limiter = new DynamicsCompressorNode(ctx, { threshold: -6, ratio: 20, attack: 0.002, release: 0.1 });
   scope = new AnalyserNode(ctx, { fftSize: 2048 });
-  master.connect(limiter).connect(scope).connect(ctx.destination);
+  limiter.connect(scope).connect(ctx.destination);
 
   const bass = new MonoSynth(ctx);
   const bells = new FMSynth(ctx);
   const drums = new DrumSynth(ctx);
+  const mallets = new ModalSynth(ctx, { gain: 0.4 });
+  const voice = new FormantSynth(ctx, { vowel: 1.5, vibrato: 8, gain: 0.35 });
   const drive = new Drive(ctx);
+  const wah = new AutoWah(ctx, { cutoff: 180, depth: 3.5, mix: 0.6 });
   const delay = new Delay(ctx, { mix: 0.2 });
   const reverb = new Reverb(ctx, { size: 3, mix: 0.35 });
+  const orbit = new Orbit(ctx, { rate: 0.15 });
+  const tape = new Tape(ctx);
 
-  chain(bass, drive, delay, master);
+  chain(bass, drive, wah, delay, master);
   chain(bells, reverb, master);
+  chain(mallets, orbit, reverb);
+  chain(voice, master);
   chain(drums, master);
+  chain(master, tape, limiter);
 
-  rig = { bass, bells, drums, drive, delay, reverb };
+  rig = { bass, bells, drums, mallets, voice, drive, wah, delay, reverb, orbit, tape };
   const panels = document.getElementById('panels');
   for (const [name, module] of Object.entries(rig)) panels.append(panel(name, module));
 }
@@ -62,7 +79,8 @@ function buildRig() {
 
 function scheduleStep(i, t) {
   const cells = (line) => line.split(' ');
-  for (const [track, lines] of [['bass', PATTERN.bass], ['bells', PATTERN.bells]]) {
+  for (const track of ['bass', 'bells', 'mallets', 'voice']) {
+    const lines = PATTERN[track];
     const inst = rig[track];
     for (const line of lines) {
       const cell = cells(line)[i];

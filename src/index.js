@@ -3,20 +3,31 @@ import { MonoSynth } from './instruments/mono-synth.js';
 import { FMSynth } from './instruments/fm-synth.js';
 import { DrumSynth } from './instruments/drum-synth.js';
 import { Sampler } from './instruments/sampler.js';
+import { ModalSynth } from './instruments/modal-synth.js';
+import { FormantSynth } from './instruments/formant-synth.js';
 import { Filter } from './effects/filter.js';
 import { Drive } from './effects/drive.js';
 import { Delay } from './effects/delay.js';
 import { Reverb } from './effects/reverb.js';
+import { Tape } from './effects/tape.js';
+import { AutoWah } from './effects/auto-wah.js';
+import { Orbit } from './effects/orbit.js';
 
 export { Module, Instrument, Effect, chain, num, choice, sanitizeParams } from './module.js';
 export { mtof, parseNote } from './util.js';
 export { DRUM } from './instruments/drum-synth.js';
-export { MonoSynth, FMSynth, DrumSynth, Sampler, Filter, Drive, Delay, Reverb };
+export {
+  MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth,
+  Filter, Drive, Delay, Reverb, Tape, AutoWah, Orbit,
+};
+
+const MODULES = [
+  MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth,
+  Filter, Drive, Delay, Reverb, Tape, AutoWah, Orbit,
+];
 
 /** Every known module, instruments and effects alike, keyed by id. */
-export const registry = new Map(
-  [MonoSynth, FMSynth, DrumSynth, Sampler, Filter, Drive, Delay, Reverb].map((M) => [M.id, M]),
-);
+export const registry = new Map(MODULES.map((M) => [M.id, M]));
 
 /** Ids as constants, read off the classes so a rename can't leave these stale. */
 export const INSTRUMENT = Object.freeze({
@@ -24,6 +35,8 @@ export const INSTRUMENT = Object.freeze({
   FM_SYNTH: FMSynth.id,
   DRUM_SYNTH: DrumSynth.id,
   SAMPLER: Sampler.id,
+  MODAL_SYNTH: ModalSynth.id,
+  FORMANT_SYNTH: FormantSynth.id,
 });
 
 export const EFFECT = Object.freeze({
@@ -31,6 +44,9 @@ export const EFFECT = Object.freeze({
   DRIVE: Drive.id,
   DELAY: Delay.id,
   REVERB: Reverb.id,
+  TAPE: Tape.id,
+  AUTO_WAH: AutoWah.id,
+  ORBIT: Orbit.id,
 });
 
 /** Add a third-party instrument or effect, making it loadable from song files. */

@@ -87,10 +87,15 @@ switch something discretely; set them, but don't sweep them per row.
 | `fm-synth` | instrument | 2-op FM, 8 voices, separate modulator envelope |
 | `drum-synth` | instrument | synthesized kick, snare, clap, closed/open hat (choked); notes in `DRUM` |
 | `sampler` | instrument | AudioBuffers across key zones; pitched or kit, one-shot or gated |
+| `modal-synth` | instrument | struck bars, bowls and bells: a high-Q bandpass bank per note, rung by a noise burst; wood, glass, steel and bell mode tables |
+| `formant-synth` | instrument | detuned sawtooths through four vowel formants; sweep `vowel` from a to u to make it talk |
 | `filter` | effect | resonant biquad |
 | `drive` | effect | tanh saturation + tone |
 | `delay` | effect | feedback delay, darkening repeats |
 | `reverb` | effect | convolution with a seeded, generated impulse |
+| `tape` | effect | wow and flutter, tanh saturation, head rolloff, seeded hiss |
+| `auto-wah` | effect | resonant filter opened by an envelope follower built from a rectifying WaveShaper and a smoothing lowpass |
+| `orbit` | effect | HRTF panner circling the listener on two LFOs; for headphones |
 
 Anything random (noise, reverb impulses) is seeded, so a song renders the
 same on every play and every machine.
