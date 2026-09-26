@@ -49,8 +49,9 @@ export const choice = (values, def, extra = {}) => ({ type: 'choice', values, de
  *   Hz  frequency        s   time           dB  decibels
  *   st  semitones        ct  cents          oct octaves
  *   m   metres           %   0..1 fraction  ×   multiplier
+ *   :1  ratio (4 is 4:1)
  */
-export const UNITS = Object.freeze(['Hz', 's', 'dB', 'st', 'ct', 'oct', 'm', '%', '×']);
+export const UNITS = Object.freeze(['Hz', 's', 'dB', 'st', 'ct', 'oct', 'm', '%', '×', ':1']);
 
 /**
  * Whether a condition (`activeWhen`, or an instrument's `gated`) holds for a
@@ -142,7 +143,7 @@ export class Module {
   /**
    * Loose categories for browsing. Instruments use bass, lead, keys, pad,
    * pluck, bell, mallet, voice, drums, percussion, sampler; effects use
-   * filter, distortion, time, space, modulation, character.
+   * filter, distortion, dynamics, time, space, modulation, character.
    */
   static tags = [];
   /**
@@ -154,6 +155,7 @@ export class Module {
    *   role   what the group is, for apps that draw more than knobs:
    *            'envelope'  bind: attack, decay, sustain, release, amount
    *            'filter'    bind: type, cutoff, resonance
+   *            'dynamics'  bind: threshold, ratio, knee
    *          An app that doesn't know a role ignores it.
    *   bind   role slot → param name, or { value } for a slot the module
    *          fixes. Slots can be left out, and may name params from other

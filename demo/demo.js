@@ -5,8 +5,8 @@
  * builder.
  */
 const {
-  MonoSynth, FMSynth, DrumSynth, ModalSynth, FormantSynth,
-  Drive, Delay, Reverb, Tape, AutoWah, Orbit, DRUM, chain, parseNote, create,
+  MonoSynth, FMSynth, DrumSynth, ModalSynth, FormantSynth, PercSynth,
+  Drive, Delay, Reverb, Tape, AutoWah, Orbit, Compressor, PingPong, DRUM, chain, parseNote, create,
   describe, matches, sanitizeParams,
 } = gloamingInstruments;
 
@@ -33,6 +33,9 @@ const PATTERN = {
     'G-3 --- --- --- --- --- --- === F-3 --- --- --- --- --- --- ===',
     'D#4 --- --- --- --- --- --- === D-4 --- --- --- --- --- --- ===',
   ],
+  perc: [
+    '--- --- --- --- --- --- --- --- --- --- --- --- G-3 --- D#3 C-3',
+  ],
   drums: {
     [DRUM.KICK]:       'x...x...x...x..o',
     [DRUM.SNARE]:      '....x.......x...',
@@ -56,6 +59,7 @@ function buildRig() {
   const bells = new FMSynth(ctx);
   const drums = new DrumSynth(ctx);
   const mallets = new ModalSynth(ctx, { gain: 0.4 });
+  const perc = new PercSynth(ctx, { ...PercSynth.presets.Tom, gain: 0.6 });
   const voice = new FormantSynth(ctx, { vowel: 1.5, vibrato: 8, gain: 0.35 });
   const drive = new Drive(ctx);
   const wah = new AutoWah(ctx, { cutoff: 180, depth: 3.5, mix: 0.6 });
@@ -63,15 +67,18 @@ function buildRig() {
   const reverb = new Reverb(ctx, { size: 3, mix: 0.35 });
   const orbit = new Orbit(ctx, { rate: 0.15 });
   const tape = new Tape(ctx);
+  const comp = new Compressor(ctx, { threshold: -18, ratio: 3, makeup: 3 });
+  const pingPong = new PingPong(ctx, { time: 0.36, mix: 0.25 });
 
   chain(bass, drive, wah, delay, master);
   chain(bells, reverb, master);
   chain(mallets, orbit, reverb);
-  chain(voice, master);
+  chain(voice, pingPong, master);
   chain(drums, master);
-  chain(master, tape, limiter);
+  chain(perc, delay);
+  chain(master, comp, tape, limiter);
 
-  rig = { bass, bells, drums, mallets, voice, drive, wah, delay, reverb, orbit, tape };
+  rig = { bass, bells, drums, perc, mallets, voice, drive, wah, delay, reverb, orbit, pingPong, comp, tape };
   const panels = document.getElementById('panels');
   for (const [name, module] of Object.entries(rig)) panels.append(panel(name, module));
 }
@@ -80,7 +87,7 @@ function buildRig() {
 
 function scheduleStep(i, t) {
   const cells = (line) => line.split(' ');
-  for (const track of ['bass', 'bells', 'mallets', 'voice']) {
+  for (const track of ['bass', 'bells', 'mallets', 'voice', 'perc']) {
     const lines = PATTERN[track];
     const inst = rig[track];
     for (const line of lines) {
@@ -239,6 +246,7 @@ function fmt(v, spec) {
     case 'Hz': return v >= 1000 ? `${num3(v / 1000)} kHz` : `${num3(v)} Hz`;
     case '%': return `${Math.round(v * 100)}%`;
     case '×': return `×${num3(v)}`;
+    case ':1': return `${num3(v)}:1`;
     case undefined: return sign + num3(v);
     default: return `${sign}${num3(v)} ${spec.unit}`;
   }
@@ -252,7 +260,7 @@ const num3 = (v) => (Math.abs(v) >= 100 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.t
 // (or fixed { value }s), so the same drawing code serves every module.
 
 function roleGraph(group, module) {
-  const draw = { envelope: drawEnvelope, filter: drawFilter }[group.role];
+  const draw = { envelope: drawEnvelope, filter: drawFilter, dynamics: drawDynamics }[group.role];
   if (!draw) return null;
   const slot = (name) => {
     const b = group.bind[name];
@@ -289,6 +297,19 @@ function drawFilter(slot) {
   biquad.getFrequencyResponse(FREQS, mag, new Float32Array(FREQS.length));
   const y = (m) => Math.min(39, Math.max(1, 20 - (20 * Math.log10(m || 1e-6)) * 0.6));
   return 'M' + [...mag].map((m, i) => `${(i * 200 / 99).toFixed(1)},${y(m).toFixed(1)}`).join(' L');
+}
+
+// Output level against input level, -60..0 dB. The knee eases the slope
+// from 1 down to 1/ratio between the threshold and threshold + knee.
+function drawDynamics(slot) {
+  const [t, r, k] = [slot('threshold'), slot('ratio'), slot('knee')];
+  const out = (x) => {
+    if (x < t) return x;
+    if (x < t + k) return x + ((1 / r - 1) * (x - t) ** 2) / (2 * k);
+    return t + (k * (1 + 1 / r)) / 2 + (x - t - k) / r;
+  };
+  const pts = Array.from({ length: 61 }, (_, i) => i - 60);
+  return 'M' + pts.map((x) => `${((x + 60) * 200 / 60).toFixed(1)},${(-out(x) * 40 / 60).toFixed(1)}`).join(' L');
 }
 
 // ---- display ----------------------------------------------------------------

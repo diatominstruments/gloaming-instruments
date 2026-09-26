@@ -116,7 +116,7 @@ static presets = { 'Acid': { cutoff: 300, resonance: 18, envMod: 3.5 }, … };
 | on a param | |
 |---|---|
 | `label`, `description` | display name (read under its group heading) and a sentence for tooltips |
-| `unit` | one of `UNITS`: `Hz s dB st ct oct m % ×`; `%` values are 0..1 fractions |
+| `unit` | one of `UNITS`: `Hz s dB st ct oct m % × :1`; `%` values are 0..1 fractions, `:1` a ratio |
 | `labels` | choices: display names for the stored values |
 | `marks` | named points on a range, `[{ value, label }]` (a formant synth's vowels) |
 | `center` | where a control rests and fills from, for ranges straddling zero |
@@ -126,7 +126,7 @@ static presets = { 'Acid': { cutoff: 300, resonance: 18, envMod: 3.5 }, … };
 | on a module | |
 |---|---|
 | `groups` | params as ordered sections; each param in exactly one |
-| group `role` + `bind` | what a section *is*, so an app can draw an envelope or a filter curve instead of knobs; `bind` maps the role's slots to params or fixed `{ value }`s. Roles: `envelope` (attack, decay, sustain, release, amount), `filter` (type, cutoff, resonance) |
+| group `role` + `bind` | what a section *is*, so an app can draw an envelope or a filter curve instead of knobs; `bind` maps the role's slots to params or fixed `{ value }`s. Roles: `envelope` (attack, decay, sustain, release, amount), `filter` (type, cutoff, resonance), `dynamics` (threshold, ratio, knee) |
 | group `notes` | for instruments with `keys`: the notes a section shapes (the kick's params) |
 | `presets` | partial params; `sanitizeParams(M, M.presets[name])` gives the full set |
 | `keys` | also on instances, since a sampler's depend on what it loaded |
@@ -146,6 +146,7 @@ from nothing but `describe()`.
 | `sampler` | instrument | AudioBuffers across key zones; pitched or kit, one-shot or gated |
 | `modal-synth` | instrument | struck bars, bowls and bells: a high-Q bandpass bank per note, rung by a noise burst; wood, glass, steel and bell mode tables |
 | `formant-synth` | instrument | detuned sawtooths through four vowel formants; sweep `vowel` from a to u to make it talk |
+| `perc-synth` | instrument | two oscillators cross-modulating each other's frequency, plus filtered noise; ADSR pitch envelope on osc 1, retriggered LFO sent to pitch, cross-mod, noise or amp; one-shot or gated |
 | `filter` | effect | resonant biquad |
 | `drive` | effect | tanh saturation + tone |
 | `delay` | effect | feedback delay, darkening repeats |
@@ -153,6 +154,8 @@ from nothing but `describe()`.
 | `tape` | effect | wow and flutter, tanh saturation, head rolloff, seeded hiss |
 | `auto-wah` | effect | resonant filter opened by an envelope follower built from a rectifying WaveShaper and a smoothing lowpass |
 | `orbit` | effect | HRTF panner circling the listener on two LFOs; for headphones |
+| `compressor` | effect | threshold/ratio/knee compression with makeup gain; `reduction` reads the current gain reduction for a meter |
+| `ping-pong` | effect | stereo delay, repeats alternating left and right, darkening as they go |
 
 Anything random (noise, reverb impulses) is seeded, so a song renders the
 same on every play and every machine.

@@ -10,6 +10,7 @@ import {
 const ROLES = {
   envelope: ['attack', 'decay', 'sustain', 'release', 'amount'],
   filter: ['type', 'cutoff', 'resonance'],
+  dynamics: ['threshold', 'ratio', 'knee'],
 };
 
 // A condition names choice params, with values those choices can take.
