@@ -1,5 +1,56 @@
 import { Instrument, num, choice } from '../module.js';
-import { mtof, envStart, envRelease, SMOOTH } from '../util.js';
+import { mtof, envStart, envRelease, noiseBuffer, SMOOTH } from '../util.js';
+
+// ---- warm character ----------------------------------------------------------
+
+/** Curvature of the warm saw's ramp: 0 is a straight line. */
+const SAW_CURVE = 2.5;
+/** Soft-clip amount between the filter stages: higher saturates sooner. */
+const DRIVE = 0.7;
+/** Signal level the drive's curve spans (±), beyond which it hard-limits. */
+const DRIVE_RANGE = 4;
+/** Gain through the drive, making up what the steeper filter takes out. */
+const WARM_MAKEUP = 1.3;
+/** Cents of pitch drift per unit of the smoothed noise: ~2.5 ct RMS, ~7 ct peaks. */
+const DRIFT_CENTS = 120;
+/** Corner of the smoothing on the drift noise: it wanders about once a second. */
+const DRIFT_RATE = 0.8;
+
+const warmSaws = new WeakMap();
+
+/**
+ * A saw whose ramp bends like a capacitor charging, (1 - e^-kt) / (1 - e^-k),
+ * instead of rising in a straight line. Its Fourier series has a closed
+ * form, c_n = -1 / (k + 2πin), so the wave is built from that directly;
+ * the browser band-limits it per note like any periodic wave.
+ */
+function warmSaw(ctx) {
+  let wave = warmSaws.get(ctx);
+  if (!wave) {
+    const harmonics = 1024;
+    const real = new Float32Array(harmonics);
+    const imag = new Float32Array(harmonics);
+    const k = SAW_CURVE;
+    for (let n = 1; n < harmonics; n++) {
+      const w = 2 * Math.PI * n;
+      real[n] = (-2 * k) / (k * k + w * w);
+      imag[n] = (-2 * w) / (k * k + w * w);
+    }
+    wave = new PeriodicWave(ctx, { real, imag });
+    warmSaws.set(ctx, wave);
+  }
+  return wave;
+}
+
+/** tanh with WARM_MAKEUP gain for small signals, soft-limiting toward WARM_MAKEUP / DRIVE. */
+function driveCurve() {
+  const curve = new Float32Array(4096);
+  for (let i = 0; i < curve.length; i++) {
+    const x = (i / (curve.length - 1)) * 2 - 1;
+    curve[i] = (Math.tanh(DRIVE * DRIVE_RANGE * x) / DRIVE) * WARM_MAKEUP;
+  }
+  return curve;
+}
 
 /**
  * MonoSynth — one oscillator plus a sub an octave down, through a resonant
@@ -12,6 +63,12 @@ import { mtof, envStart, envRelease, SMOOTH } from '../util.js';
  *
  * The filter envelope rides on the biquad's `detune` (in cents), so the
  * `cutoff` knob and the envelope never fight over the same param.
+ *
+ * `character` switches between the clean graph and a warm one: the saw's
+ * ramp bends slightly, the pitch drifts a few cents on seeded noise, and
+ * the filter becomes two stages (24 dB/oct) with the resonance split
+ * between them and a soft clipper in the middle, so resonant peaks round
+ * off instead of whistling.
  */
 export class MonoSynth extends Instrument {
   static id = 'mono-synth';
@@ -23,6 +80,11 @@ export class MonoSynth extends Instrument {
     wave: choice(['sawtooth', 'square', 'triangle', 'sine'], 'sawtooth', {
       label: 'Wave', description: 'Shape of the main oscillator.',
       labels: { sawtooth: 'Saw', square: 'Square', triangle: 'Triangle', sine: 'Sine' },
+    }),
+    character: choice(['clean', 'warm'], 'clean', {
+      label: 'Character',
+      description: 'Warm curves the saw, lets the pitch drift, and makes the filter steeper with soft saturation.',
+      labels: { clean: 'Clean', warm: 'Warm' },
     }),
     sub: num(0, 1, 0, {
       unit: '%', label: 'Sub', description: 'A square wave an octave below, for weight.',
@@ -60,7 +122,7 @@ export class MonoSynth extends Instrument {
     gain: num(0, 1, 0.5, { unit: '%', label: 'Level', description: 'Output level.' }),
   };
   static groups = [
-    { id: 'osc', label: 'Oscillator', params: ['wave', 'sub'] },
+    { id: 'osc', label: 'Oscillator', params: ['wave', 'sub', 'character'] },
     {
       id: 'filter', label: 'Filter', params: ['cutoff', 'resonance'],
       role: 'filter', bind: { type: { value: 'lowpass' }, cutoff: 'cutoff', resonance: 'resonance' },
@@ -105,15 +167,62 @@ export class MonoSynth extends Instrument {
     this.pitch.connect(this.subOsc.frequency);
 
     this.subLevel = new GainNode(ctx, { gain: p.sub });
-    this.filter = new BiquadFilterNode(ctx, { type: 'lowpass', frequency: p.cutoff, Q: p.resonance });
+    this.filter = new BiquadFilterNode(ctx, { type: 'lowpass', frequency: p.cutoff });
     this.vca = new GainNode(ctx, { gain: 0 });
 
     this.osc.connect(this.filter);
     this.subOsc.connect(this.subLevel).connect(this.filter);
-    this.filter.connect(this.vca).connect(this.output);
+    this.vca.connect(this.output);
 
-    for (const node of [this.pitch, this.osc, this.subOsc]) node.start();
+    // The warm path: drive and a second filter stage after the first, and
+    // slow noise into both oscillators' detune. Wired in by #route.
+    this.driveIn = new GainNode(ctx, { gain: 1 / DRIVE_RANGE });
+    this.drive = new WaveShaperNode(ctx, { curve: driveCurve(), oversample: '4x' });
+    this.filter2 = new BiquadFilterNode(ctx, { type: 'lowpass', frequency: p.cutoff });
+    this.driveIn.connect(this.drive).connect(this.filter2);
+    this.driftNoise = new AudioBufferSourceNode(ctx, { buffer: noiseBuffer(ctx), loop: true, playbackRate: 0.05 });
+    this.drift = new GainNode(ctx, { gain: DRIFT_CENTS });
+    this.driftNoise
+      .connect(new BiquadFilterNode(ctx, { type: 'lowpass', frequency: DRIFT_RATE, Q: 0 }))
+      .connect(new BiquadFilterNode(ctx, { type: 'lowpass', frequency: DRIFT_RATE, Q: 0 }))
+      .connect(this.drift);
+    this.#route();
+
+    for (const node of [this.pitch, this.osc, this.subOsc, this.driftNoise]) node.start();
     this.held = [];   // held notes, most recent last
+  }
+
+  get #warm() {
+    return this.params.character === 'warm';
+  }
+
+  /** Wire the clean or warm graph for the current `character`. */
+  #route() {
+    const warm = this.#warm;
+    this.filter.disconnect();
+    this.drift.disconnect();
+    this.filter2.disconnect();
+    if (warm) {
+      this.filter.connect(this.driveIn);
+      this.filter2.connect(this.vca);
+      this.drift.connect(this.osc.detune);
+      this.drift.connect(this.subOsc.detune);
+    } else {
+      this.filter.connect(this.vca);
+    }
+    this.#setWave(this.params.wave);
+    // Two stages in series add their peaks in dB, so each takes half.
+    const q = warm ? this.params.resonance / 2 : this.params.resonance;
+    for (const f of this.#filters) f.Q.value = q;
+  }
+
+  get #filters() {
+    return this.#warm ? [this.filter, this.filter2] : [this.filter];
+  }
+
+  #setWave(wave) {
+    if (wave === 'sawtooth' && this.#warm) this.osc.setPeriodicWave(warmSaw(this.ctx));
+    else this.osc.type = wave;
   }
 
   noteOn(note, velocity = 1, time) {
@@ -127,9 +236,11 @@ export class MonoSynth extends Instrument {
 
     const p = this.params;
     envStart(this.vca.gain, t, { attack: p.attack, decay: p.decay, sustain: p.sustain, peak: velocity });
-    envStart(this.filter.detune, t, {
-      attack: 0.003, decay: p.filterDecay, sustain: 0, peak: p.envMod * 1200 * velocity,
-    });
+    for (const f of this.#filters) {
+      envStart(f.detune, t, {
+        attack: 0.003, decay: p.filterDecay, sustain: 0, peak: p.envMod * 1200 * velocity,
+      });
+    }
   }
 
   noteOff(note, time) {
@@ -159,16 +270,21 @@ export class MonoSynth extends Instrument {
 
   applyParam(name, value, time) {
     switch (name) {
-      case 'wave': this.osc.type = value; break;
+      case 'wave': this.#setWave(value); break;
+      case 'character': this.#route(); break;
       case 'sub': this.subLevel.gain.setTargetAtTime(value, time, SMOOTH); break;
-      case 'cutoff': this.filter.frequency.setTargetAtTime(value, time, SMOOTH); break;
-      case 'resonance': this.filter.Q.setTargetAtTime(value, time, SMOOTH); break;
+      case 'cutoff':
+        for (const f of [this.filter, this.filter2]) f.frequency.setTargetAtTime(value, time, SMOOTH);
+        break;
+      case 'resonance':
+        for (const f of this.#filters) f.Q.setTargetAtTime(this.#warm ? value / 2 : value, time, SMOOTH);
+        break;
       default: super.applyParam(name, value, time);
     }
   }
 
   dispose() {
-    for (const node of [this.pitch, this.osc, this.subOsc]) node.stop();
+    for (const node of [this.pitch, this.osc, this.subOsc, this.driftNoise]) node.stop();
     super.dispose();
   }
 }

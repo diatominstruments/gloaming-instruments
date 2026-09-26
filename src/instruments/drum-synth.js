@@ -1,5 +1,5 @@
 import { Instrument, num } from '../module.js';
-import { noiseBuffer, envHit } from '../util.js';
+import { noiseBuffer, envHit, SMOOTH } from '../util.js';
 
 /** Note numbers for each drum, following General MIDI where it has one. */
 export const DRUM = Object.freeze({
@@ -14,8 +14,20 @@ export const DRUM = Object.freeze({
  * DrumSynth — a synthesized kit, no samples needed: kick, snare, clap, and
  * closed/open hats (the closed hat chokes the open one). Notes other than
  * those in DRUM are ignored, and so is noteOff, since every hit is a
- * one-shot.
+ * one-shot. Each drum plays through its own level, so they can be mixed
+ * against each other, even while ringing.
  */
+const level = (drum) => num(0, 1, 1, { unit: '%', label: 'Level', description: `Volume of the ${drum}.` });
+
+/** Level param for each drum; the closed and open hats are mixed separately. */
+const LEVELS = {
+  [DRUM.KICK]: 'kickLevel',
+  [DRUM.SNARE]: 'snareLevel',
+  [DRUM.CLAP]: 'clapLevel',
+  [DRUM.CLOSED_HAT]: 'hatLevel',
+  [DRUM.OPEN_HAT]: 'openLevel',
+};
+
 export class DrumSynth extends Instrument {
   static id = 'drum-synth';
   static label = 'Drum Synth';
@@ -39,6 +51,7 @@ export class DrumSynth extends Instrument {
     kickDecay: num(0.05, 2, 0.45, {
       unit: 's', scale: 'log', primary: true, label: 'Decay', description: 'How long the kick booms.',
     }),
+    kickLevel: level('kick'),
     snareTune: num(100, 400, 190, {
       unit: 'Hz', label: 'Tune', description: 'Pitch of the snare body.',
     }),
@@ -48,9 +61,11 @@ export class DrumSynth extends Instrument {
     snareDecay: num(0.05, 1, 0.2, {
       unit: 's', scale: 'log', label: 'Decay', description: 'How long the snare rings.',
     }),
+    snareLevel: level('snare'),
     clapDecay: num(0.05, 1, 0.25, {
       unit: 's', scale: 'log', label: 'Decay', description: 'Length of the clap tail.',
     }),
+    clapLevel: level('clap'),
     hatTone: num(2000, 14000, 7000, {
       unit: 'Hz', scale: 'log', primary: true, label: 'Tone', description: 'Brightness of both hats.',
     }),
@@ -60,15 +75,17 @@ export class DrumSynth extends Instrument {
     openDecay: num(0.05, 2, 0.4, {
       unit: 's', scale: 'log', label: 'Open decay', description: 'Length of the open hat, unless a closed hat chokes it.',
     }),
+    hatLevel: { ...level('closed hat'), label: 'Closed level' },
+    openLevel: { ...level('open hat'), label: 'Open level' },
     gain: num(0, 1, 0.8, { unit: '%', label: 'Level', description: 'Output level.' }),
   };
   static groups = [
-    { id: 'kick', label: 'Kick', notes: [DRUM.KICK], params: ['kickTune', 'kickPunch', 'kickDecay'] },
-    { id: 'snare', label: 'Snare', notes: [DRUM.SNARE], params: ['snareTune', 'snareSnap', 'snareDecay'] },
-    { id: 'clap', label: 'Clap', notes: [DRUM.CLAP], params: ['clapDecay'] },
+    { id: 'kick', label: 'Kick', notes: [DRUM.KICK], params: ['kickTune', 'kickPunch', 'kickDecay', 'kickLevel'] },
+    { id: 'snare', label: 'Snare', notes: [DRUM.SNARE], params: ['snareTune', 'snareSnap', 'snareDecay', 'snareLevel'] },
+    { id: 'clap', label: 'Clap', notes: [DRUM.CLAP], params: ['clapDecay', 'clapLevel'] },
     {
       id: 'hats', label: 'Hats', notes: [DRUM.CLOSED_HAT, DRUM.OPEN_HAT],
-      params: ['hatTone', 'hatDecay', 'openDecay'],
+      params: ['hatTone', 'hatDecay', 'openDecay', 'hatLevel', 'openLevel'],
     },
     { id: 'output', label: 'Output', params: ['gain'] },
   ];
@@ -85,6 +102,19 @@ export class DrumSynth extends Instrument {
     super(ctx, params);
     this.sounding = new Set();   // amps still ringing, for allNotesOff
     this.openHat = null;         // the amp a closed hat chokes
+    this.buses = new Map();      // note -> that drum's level, into the output
+    for (const [note, name] of Object.entries(LEVELS)) {
+      const bus = new GainNode(ctx, { gain: this.params[name] });
+      bus.connect(this.output);
+      this.buses.set(Number(note), bus);
+    }
+  }
+
+  applyParam(name, value, time) {
+    super.applyParam(name, value, time);
+    for (const [note, level] of Object.entries(LEVELS)) {
+      if (level === name) this.buses.get(Number(note)).gain.setTargetAtTime(value, time, SMOOTH);
+    }
   }
 
   noteOn(note, velocity = 1, time) {
@@ -108,25 +138,25 @@ export class DrumSynth extends Instrument {
     const osc = new OscillatorNode(this.ctx, { type: 'sine' });
     osc.frequency.setValueAtTime(p.kickTune * (1 + p.kickPunch * 6), t);
     osc.frequency.setTargetAtTime(p.kickTune, t, 0.025);
-    const amp = this.#amp();
+    const amp = this.#amp(DRUM.KICK);
     this.#play(osc, amp, t, envHit(amp.gain, t, v, p.kickDecay));
   }
 
   #snare(t, v) {
     const p = this.params;
     const body = new OscillatorNode(this.ctx, { type: 'triangle', frequency: p.snareTune });
-    const bodyAmp = this.#amp();
+    const bodyAmp = this.#amp(DRUM.SNARE);
     this.#play(body, bodyAmp, t, envHit(bodyAmp.gain, t, v * (1 - p.snareSnap * 0.7), p.snareDecay * 0.5));
 
     const snap = new BiquadFilterNode(this.ctx, { type: 'highpass', frequency: 1500 });
-    const snapAmp = this.#amp();
+    const snapAmp = this.#amp(DRUM.SNARE);
     snap.connect(snapAmp);
     this.#play(this.#noise(snap), snapAmp, t, envHit(snapAmp.gain, t, v * p.snareSnap, p.snareDecay));
   }
 
   #clap(t, v) {
     const band = new BiquadFilterNode(this.ctx, { type: 'bandpass', frequency: 1200, Q: 1.5 });
-    const amp = this.#amp();
+    const amp = this.#amp(DRUM.CLAP);
     band.connect(amp);
 
     // A few ragged bursts, then the tail: the "many hands" of an 808 clap.
@@ -145,16 +175,16 @@ export class DrumSynth extends Instrument {
     if (this.openHat) choke(this.openHat, t);
 
     const tone = new BiquadFilterNode(this.ctx, { type: 'highpass', frequency: p.hatTone, Q: 1 });
-    const amp = this.#amp();
+    const amp = this.#amp(open ? DRUM.OPEN_HAT : DRUM.CLOSED_HAT);
     tone.connect(amp);
     const end = envHit(amp.gain, t, v * 0.5, open ? p.openDecay : p.hatDecay);
     this.#play(this.#noise(tone), amp, t, end);
     this.openHat = open ? amp : null;
   }
 
-  #amp() {
+  #amp(note) {
     const amp = new GainNode(this.ctx, { gain: 0 });
-    amp.connect(this.output);
+    amp.connect(this.buses.get(note));
     return amp;
   }
 
