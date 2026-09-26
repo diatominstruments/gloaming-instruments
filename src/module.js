@@ -109,6 +109,7 @@ function sanitize(spec, value, fallback) {
  * keys dropped. For validating songs server-side.
  */
 export function sanitizeParams(M, params) {
+  params = M.upgradeParams(params);
   const clean = {};
   for (const [name, spec] of Object.entries(M.params)) {
     clean[name] = sanitize(spec, params?.[name], spec.default);
@@ -170,7 +171,18 @@ export class Module {
    */
   static presets = {};
 
+  /**
+   * Translate params saved under an older schema (renamed or rescaled
+   * params) into the current one, so a module can reshape its params
+   * without old songs changing sound. Runs before validation, on anything
+   * passed to the constructor or `sanitizeParams`.
+   */
+  static upgradeParams(params) {
+    return params;
+  }
+
   constructor(ctx, params = {}) {
+    params = this.constructor.upgradeParams(params);
     this.ctx = ctx;
     this.params = {};
     for (const [name, spec] of Object.entries(this.constructor.params)) {

@@ -141,7 +141,7 @@ from nothing but `describe()`.
 | id | kind | |
 |---|---|---|
 | `mono-synth` | instrument | osc + sub → resonant lowpass with decay env; last-note priority with glide (overlap notes to slide) |
-| `fm-synth` | instrument | 2-op FM, 8 voices, separate modulator envelope |
+| `fm-synth` | instrument | 4-op FM, 8 voices, an envelope per operator; eight algorithms (stacks, forks, pairs, additive) in `FM_ALGORITHMS` as `[from, to]` pairs for drawing the routing |
 | `drum-synth` | instrument | synthesized kick, snare, clap, closed/open hat (choked); notes in `DRUM` |
 | `sampler` | instrument | AudioBuffers across key zones; pitched or kit, one-shot or gated |
 | `modal-synth` | instrument | struck bars, bowls and bells: a high-Q bandpass bank per note, rung by a noise burst; wood, glass, steel and bell mode tables |
@@ -165,7 +165,9 @@ same on every play and every machine.
 Extend `Instrument` or `Effect`, declare `id` and `params`, build your graph
 from `this.params` in the constructor (the base class has already validated
 them), and handle later changes in `applyParam(name, value, time)`. Params
-read only at note-on need no `applyParam` at all. Then `register(MyThing)`
+read only at note-on need no `applyParam` at all. To rename or rescale
+params without changing how old songs sound, translate the old names in
+`static upgradeParams(params)`; it runs before validation. Then `register(MyThing)`
 makes it loadable from song files. Display metadata is optional: without
 it, labels come from param names and every param lands in one group.
 

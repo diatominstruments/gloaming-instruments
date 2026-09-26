@@ -34,7 +34,7 @@ const LFO_PITCH_RANGE = 24;
  */
 export class PercSynth extends Instrument {
   static id = 'perc-synth';
-  static label = 'Perc Synth';
+  static label = 'Percussion Synth';
   static description = 'Two cross-modulating oscillators plus noise, with a pitch envelope and an LFO. Toms, zaps and metallic hits.';
   static tags = ['percussion', 'drums'];
   static polyphony = MAX_VOICES;

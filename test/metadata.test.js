@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   registry, manifest, describe, sanitizeParams, matches, noteName, parseNote, UNITS, Effect, num,
+  FMSynth, FM_ALGORITHMS,
 } from '../src/index.js';
 
 const ROLES = {
@@ -129,4 +130,29 @@ test('matches', () => {
 
 test('noteName inverts parseNote', () => {
   for (const name of ['C-4', 'C#4', 'A-4', 'B-0', 'D#9']) assert.equal(noteName(parseNote(name)), name);
+});
+
+test('FM algorithms route between the four operators, with a carrier each', () => {
+  assert.deepEqual(Object.keys(FM_ALGORITHMS), FMSynth.params.algorithm.values);
+  for (const [name, edges] of Object.entries(FM_ALGORITHMS)) {
+    for (const [from, to] of edges) {
+      assert.ok([1, 2, 3, 4].includes(from) && [1, 2, 3, 4].includes(to) && from !== to, `${name}: ${from} → ${to}`);
+    }
+    assert.ok(!edges.some(([from]) => from === 1), `${name}: operator 1 should always be a carrier`);
+  }
+});
+
+test('FM synth reads v1 two-operator params', () => {
+  const v1 = { ratio: 2, index: 5, modDecay: 0.15, modSustain: 0, decay: 0.4, sustain: 0, release: 0.2 };
+  const params = sanitizeParams(FMSynth, v1);
+  assert.equal(params.algorithm, 'stack');
+  assert.equal(params.op2Ratio, 2);
+  assert.equal(params.op2Level, 0.25);
+  assert.equal(params.op2Decay, 0.15);
+  assert.equal(params.op1Decay, 0.4);
+  assert.equal(params.op1Level, 1);
+  assert.equal(params.op3Level, 0);
+  assert.equal(params.op4Level, 0);
+  // New names win over old ones.
+  assert.equal(sanitizeParams(FMSynth, { ratio: 2, op2Ratio: 3 }).op2Ratio, 3);
 });

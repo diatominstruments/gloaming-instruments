@@ -21,6 +21,7 @@ export {
 } from './module.js';
 export { mtof, parseNote, noteName } from './util.js';
 export { DRUM } from './instruments/drum-synth.js';
+export { FM_ALGORITHMS } from './instruments/fm-synth.js';
 export {
   MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth,
   Filter, Drive, Delay, Reverb, Tape, AutoWah, Orbit, Compressor, PingPong,
