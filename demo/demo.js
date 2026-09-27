@@ -5,7 +5,7 @@
  * builder.
  */
 const {
-  MonoSynth, FMSynth, DrumSynth, ModalSynth, FormantSynth, PercSynth,
+  MonoSynth, FMSynth, DrumSynth, ModalSynth, FormantSynth, PercSynth, PolySynth,
   Drive, Delay, Reverb, Tape, AutoWah, Orbit, Compressor, PingPong, DRUM, chain, parseNote, create,
   describe, matches, sanitizeParams,
 } = gloamingInstruments;
@@ -32,6 +32,11 @@ const PATTERN = {
     'C-3 --- --- --- --- --- --- === A#2 --- --- --- --- --- --- ===',
     'G-3 --- --- --- --- --- --- === F-3 --- --- --- --- --- --- ===',
     'D#4 --- --- --- --- --- --- === D-4 --- --- --- --- --- --- ===',
+  ],
+  pad: [
+    'C-4 --- --- --- --- --- --- === A#3 --- --- --- --- --- --- ===',
+    'D#4 --- --- --- --- --- --- === D#4 --- --- --- --- --- --- ===',
+    'G-4 --- --- --- --- --- --- === G-4 --- --- --- --- --- --- ===',
   ],
   perc: [
     '--- --- --- --- --- --- --- --- --- --- --- --- G-3 --- D#3 C-3',
@@ -69,16 +74,18 @@ function buildRig() {
   const tape = new Tape(ctx);
   const comp = new Compressor(ctx, { threshold: -18, ratio: 3, makeup: 3 });
   const pingPong = new PingPong(ctx, { time: 0.36, mix: 0.25 });
+  const pad = new PolySynth(ctx, { ...PolySynth.presets.Pad, gain: 0.25 });
 
   chain(bass, drive, wah, delay, master);
   chain(bells, reverb, master);
   chain(mallets, orbit, reverb);
   chain(voice, pingPong, master);
   chain(drums, master);
+  chain(pad, master);
   chain(perc, delay);
   chain(master, comp, tape, limiter);
 
-  rig = { bass, bells, drums, perc, mallets, voice, drive, wah, delay, reverb, orbit, pingPong, comp, tape };
+  rig = { bass, bells, drums, perc, mallets, voice, pad, drive, wah, delay, reverb, orbit, pingPong, comp, tape };
   const panels = document.getElementById('panels');
   for (const [name, module] of Object.entries(rig)) panels.append(panel(name, module));
 }
@@ -87,7 +94,7 @@ function buildRig() {
 
 function scheduleStep(i, t) {
   const cells = (line) => line.split(' ');
-  for (const track of ['bass', 'bells', 'mallets', 'voice', 'perc']) {
+  for (const track of ['bass', 'bells', 'mallets', 'voice', 'pad', 'perc']) {
     const lines = PATTERN[track];
     const inst = rig[track];
     for (const line of lines) {

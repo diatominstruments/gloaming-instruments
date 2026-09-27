@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   registry, manifest, describe, sanitizeParams, matches, noteName, parseNote, UNITS, Effect, num,
-  FMSynth, FM_ALGORITHMS,
+  FMSynth, FM_ALGORITHMS, PolySynth, Chorus, CHORUS_MODES,
 } from '../src/index.js';
 
 const ROLES = {
@@ -155,4 +155,12 @@ test('FM synth reads v1 two-operator params', () => {
   assert.equal(params.op4Level, 0);
   // New names win over old ones.
   assert.equal(sanitizeParams(FMSynth, { ratio: 2, op2Ratio: 3 }).op2Ratio, 3);
+});
+
+test('poly synth chorus modes are valid Chorus settings', () => {
+  assert.deepEqual(PolySynth.params.chorus.values, ['off', ...Object.keys(CHORUS_MODES)]);
+  for (const [mode, params] of Object.entries(CHORUS_MODES)) {
+    const clean = sanitizeParams(Chorus, params);
+    for (const [name, value] of Object.entries(params)) assert.equal(clean[name], value, `${mode}: '${name}'`);
+  }
 });

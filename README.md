@@ -146,6 +146,7 @@ from nothing but `describe()`.
 | `sampler` | instrument | AudioBuffers across key zones; pitched or kit, one-shot or gated |
 | `modal-synth` | instrument | struck bars, bowls and bells: a high-Q bandpass bank per note, rung by a noise burst; wood, glass, steel and bell mode tables |
 | `formant-synth` | instrument | detuned sawtooths through four vowel formants; sweep `vowel` from a to u to make it talk |
+| `poly-synth` | instrument | 6-voice analog-style poly: saw, pulse (PWM from a saw minus its delayed self), sub and noise → 24 dB resonant lowpass with one ADSR on filter and amp; shared LFO with fade-in; switchable highpass and built-in chorus modes I / II / I+II |
 | `perc-synth` | instrument | two oscillators cross-modulating each other's frequency, plus filtered noise; ADSR pitch envelope on osc 1, retriggered LFO sent to pitch, cross-mod, noise or amp; one-shot or gated |
 | `filter` | effect | resonant biquad |
 | `drive` | effect | tanh saturation + tone |
@@ -156,6 +157,7 @@ from nothing but `describe()`.
 | `orbit` | effect | HRTF panner circling the listener on two LFOs; for headphones |
 | `compressor` | effect | threshold/ratio/knee compression with makeup gain; `reduction` reads the current gain reduction for a meter |
 | `ping-pong` | effect | stereo delay, repeats alternating left and right, darkening as they go |
+| `chorus` | effect | two delay lines swept in opposite directions by one triangle LFO; the classic modes in `CHORUS_MODES` |
 
 Anything random (noise, reverb impulses) is seeded, so a song renders the
 same on every play and every machine.

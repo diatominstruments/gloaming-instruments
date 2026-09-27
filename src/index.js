@@ -6,6 +6,7 @@ import { Sampler } from './instruments/sampler.js';
 import { ModalSynth } from './instruments/modal-synth.js';
 import { FormantSynth } from './instruments/formant-synth.js';
 import { PercSynth } from './instruments/perc-synth.js';
+import { PolySynth } from './instruments/poly-synth.js';
 import { Filter } from './effects/filter.js';
 import { Drive } from './effects/drive.js';
 import { Delay } from './effects/delay.js';
@@ -15,6 +16,7 @@ import { AutoWah } from './effects/auto-wah.js';
 import { Orbit } from './effects/orbit.js';
 import { Compressor } from './effects/compressor.js';
 import { PingPong } from './effects/ping-pong.js';
+import { Chorus } from './effects/chorus.js';
 
 export {
   Module, Instrument, Effect, chain, num, choice, sanitizeParams, describe, matches, UNITS,
@@ -22,14 +24,15 @@ export {
 export { mtof, parseNote, noteName } from './util.js';
 export { DRUM } from './instruments/drum-synth.js';
 export { FM_ALGORITHMS } from './instruments/fm-synth.js';
+export { CHORUS_MODES } from './effects/chorus.js';
 export {
-  MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth,
-  Filter, Drive, Delay, Reverb, Tape, AutoWah, Orbit, Compressor, PingPong,
+  MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth, PolySynth,
+  Filter, Drive, Delay, Reverb, Tape, AutoWah, Orbit, Compressor, PingPong, Chorus,
 };
 
 const MODULES = [
-  MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth,
-  Filter, Drive, Delay, Reverb, Tape, AutoWah, Orbit, Compressor, PingPong,
+  MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth, PolySynth,
+  Filter, Drive, Delay, Reverb, Tape, AutoWah, Orbit, Compressor, PingPong, Chorus,
 ];
 
 /** Every known module, instruments and effects alike, keyed by id. */
@@ -44,6 +47,7 @@ export const INSTRUMENT = Object.freeze({
   MODAL_SYNTH: ModalSynth.id,
   FORMANT_SYNTH: FormantSynth.id,
   PERC_SYNTH: PercSynth.id,
+  POLY_SYNTH: PolySynth.id,
 });
 
 export const EFFECT = Object.freeze({
@@ -56,6 +60,7 @@ export const EFFECT = Object.freeze({
   ORBIT: Orbit.id,
   COMPRESSOR: Compressor.id,
   PING_PONG: PingPong.id,
+  CHORUS: Chorus.id,
 });
 
 /** Add a third-party instrument or effect, making it loadable from song files. */
