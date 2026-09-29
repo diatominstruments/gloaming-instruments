@@ -96,7 +96,7 @@ const gainToDb = (gain) => 20 * Math.log10(gain);
  * sharpness `k` has no closed form, so it's found by bisection, as the
  * browsers do.
  */
-function builtInMakeupDb(threshold, ratio, knee) {
+export function builtInMakeupDb(threshold, ratio, knee) {
   const t = dbToGain(threshold);
   const kneeEnd = dbToGain(threshold + knee);
   const curve = (x, k) => (x < t ? x : t + (1 - Math.exp(-k * (x - t))) / k);

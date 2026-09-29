@@ -6,7 +6,7 @@
  */
 const {
   MonoSynth, FMSynth, DrumSynth, ModalSynth, FormantSynth, PercSynth, PolySynth,
-  Drive, Delay, Reverb, Tape, AutoWah, Orbit, Compressor, PingPong, DRUM, chain, parseNote, create,
+  Drive, Delay, Reverb, Tape, AutoWah, Orbit, Compressor, PingPong, Limiter, EQ, Saturator, DRUM, chain, parseNote, create,
   describe, matches, sanitizeParams,
 } = gloamingInstruments;
 
@@ -56,9 +56,7 @@ const lineState = new Map();   // melodic line -> note currently sounding
 function buildRig() {
   ctx = new AudioContext();
   master = new GainNode(ctx, { gain: 0.8 });
-  const limiter = new DynamicsCompressorNode(ctx, { threshold: -6, ratio: 20, attack: 0.002, release: 0.1 });
   scope = new AnalyserNode(ctx, { fftSize: 2048 });
-  limiter.connect(scope).connect(ctx.destination);
 
   const bass = new MonoSynth(ctx);
   const bells = new FMSynth(ctx);
@@ -74,6 +72,9 @@ function buildRig() {
   const tape = new Tape(ctx);
   const comp = new Compressor(ctx, { threshold: -18, ratio: 3, makeup: 3 });
   const pingPong = new PingPong(ctx, { time: 0.36, mix: 0.25 });
+  const eq = new EQ(ctx);
+  const saturator = new Saturator(ctx, Saturator.presets.Warmth);
+  const limiter = new Limiter(ctx, Limiter.presets.Loud);
   const pad = new PolySynth(ctx, { ...PolySynth.presets.Pad, gain: 0.25 });
 
   chain(bass, drive, wah, delay, master);
@@ -83,9 +84,9 @@ function buildRig() {
   chain(drums, master);
   chain(pad, master);
   chain(perc, delay);
-  chain(master, comp, tape, limiter);
+  chain(master, eq, comp, saturator, tape, limiter, scope, ctx.destination);
 
-  rig = { bass, bells, drums, perc, mallets, voice, pad, drive, wah, delay, reverb, orbit, pingPong, comp, tape };
+  rig = { bass, bells, drums, perc, mallets, voice, pad, drive, wah, delay, reverb, orbit, pingPong, eq, comp, saturator, tape, limiter };
   const panels = document.getElementById('panels');
   for (const [name, module] of Object.entries(rig)) panels.append(panel(name, module));
 }

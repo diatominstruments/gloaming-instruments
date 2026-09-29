@@ -17,6 +17,9 @@ import { Orbit } from './effects/orbit.js';
 import { Compressor } from './effects/compressor.js';
 import { PingPong } from './effects/ping-pong.js';
 import { Chorus } from './effects/chorus.js';
+import { Limiter } from './effects/limiter.js';
+import { EQ } from './effects/eq.js';
+import { Saturator } from './effects/saturator.js';
 
 export {
   Module, Instrument, Effect, chain, num, choice, sanitizeParams, describe, matches, UNITS,
@@ -28,11 +31,13 @@ export { CHORUS_MODES } from './effects/chorus.js';
 export {
   MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth, PolySynth,
   Filter, Drive, Delay, Reverb, Tape, AutoWah, Orbit, Compressor, PingPong, Chorus,
+  Limiter, EQ, Saturator,
 };
 
 const MODULES = [
   MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth, PolySynth,
   Filter, Drive, Delay, Reverb, Tape, AutoWah, Orbit, Compressor, PingPong, Chorus,
+  Limiter, EQ, Saturator,
 ];
 
 /** Every known module, instruments and effects alike, keyed by id. */
@@ -61,6 +66,9 @@ export const EFFECT = Object.freeze({
   COMPRESSOR: Compressor.id,
   PING_PONG: PingPong.id,
   CHORUS: Chorus.id,
+  LIMITER: Limiter.id,
+  EQ: EQ.id,
+  SATURATOR: Saturator.id,
 });
 
 /** Add a third-party instrument or effect, making it loadable from song files. */
