@@ -27,6 +27,7 @@ export {
 export { mtof, parseNote, noteName } from './util.js';
 export { DRUM } from './instruments/drum-synth.js';
 export { FM_ALGORITHMS } from './instruments/fm-synth.js';
+export { SAMPLE_BANKS } from './instruments/sample-banks.js';
 export { CHORUS_MODES } from './effects/chorus.js';
 export {
   MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth, PolySynth,

@@ -1,32 +1,64 @@
 import { Instrument, num, choice } from '../module.js';
 import { envStart, envRelease, noteName } from '../util.js';
+import { SAMPLE_BANKS, bankZones, bankKeys } from './sample-banks.js';
+
+// Where bank folders are served from. As an ES module the library finds
+// src/kits/ beside its own source; the IIFE bundle has no import.meta, so it
+// looks for dist/kits/ beside its <script>. Apps serving the kits elsewhere
+// set Sampler.bankRoot.
+const DEFAULT_BANK_ROOT = import.meta.url
+  ? new URL('../kits/', import.meta.url).href
+  : new URL('kits/', globalThis.document?.currentScript?.src ?? globalThis.location?.href ?? 'file:///').href;
+
+// Decoded buffers, shared by every sampler on a context, so switching banks
+// back and forth or running two samplers on one kit fetches each file once.
+const buffers = new WeakMap();   // context -> Map(url -> Promise<AudioBuffer>)
+
+function fetchBuffer(ctx, url) {
+  let cache = buffers.get(ctx);
+  if (!cache) buffers.set(ctx, (cache = new Map()));
+  let buffer = cache.get(url);
+  if (!buffer) {
+    buffer = fetch(url)
+      .then((response) => {
+        if (!response.ok) throw new Error(`sampler: ${response.status} fetching ${url}`);
+        return response.arrayBuffer();
+      })
+      .then((bytes) => ctx.decodeAudioData(bytes));
+    buffer.catch(() => cache.delete(url));   // let a later load retry
+    cache.set(url, buffer);
+  }
+  return buffer;
+}
 
 /**
- * Sampler — plays AudioBuffers across key zones. One zone spanning the
- * keyboard gives a pitched instrument; one zone per note gives a drum kit.
- *
- *   await sampler.load([
- *     { sample: 'kits/909/kick.wav',  lo: 36, hi: 36, root: 36, label: 'Kick' },
- *     { sample: 'kits/909/snare.wav', lo: 38, hi: 38, root: 38, label: 'Snare' },
- *   ]);
- *   await sampler.load('pad.wav');   // shorthand: one zone, root C-4
- *
+ * Sampler — plays AudioBuffers across key zones. Its sounds come from one of
+ * the hardcoded SAMPLE_BANKS, chosen by the `bank` param: a kit (one sample
+ * per key, named in `keys`) or a pitched bank (zones across the keyboard).
  * A zone plays its sample at original speed on `root` and repitches from
- * there. In 'one-shot' mode noteOff is ignored and each note chokes its own
- * previous hit (like a drum machine pad); in 'gate' mode notes release on
- * noteOff.
+ * there.
  *
- * Samples are assets rather than params: a zone given by URL is saved in
- * toJSON() and reloaded by fromJSON(); a zone given as a bare AudioBuffer
- * works but can't be saved.
+ * In 'one-shot' mode noteOff is ignored and each note chokes its own
+ * previous hit (like a drum machine pad); in 'gate' mode notes release on
+ * noteOff. Zones sharing a `choke` group also cut each other off.
+ *
+ * Songs store only the bank's key, so loading one never fetches anything
+ * but the bundled banks. `load(zones)` still takes zones directly, from
+ * URLs or AudioBuffers, for code building its own instrument; those zones
+ * last until the bank changes and aren't saved.
  */
 export class Sampler extends Instrument {
   static id = 'sampler';
+  static version = 2;
   static label = 'Sampler';
-  static description = 'Plays samples across key zones: one pitched across the keyboard, or one per key as a kit.';
-  static tags = ['sampler'];
+  static description = 'Plays a bank of samples: a drum kit with one sound per key, or a pitched instrument across the keyboard.';
+  static tags = ['sampler', 'drums'];
   static gated = { mode: 'gate' };
   static params = {
+    bank: choice(Object.keys(SAMPLE_BANKS), '909', {
+      label: 'Bank', description: 'The set of samples to play.',
+      labels: Object.fromEntries(Object.entries(SAMPLE_BANKS).map(([key, bank]) => [key, bank.label])),
+    }),
     mode: choice(['one-shot', 'gate'], 'one-shot', {
       label: 'Mode', description: 'One-shot plays each sample to the end; gated stops it at note off.',
       labels: { 'one-shot': 'One-shot', gate: 'Gated' },
@@ -44,7 +76,7 @@ export class Sampler extends Instrument {
     gain: num(0, 1, 0.8, { unit: '%', primary: true, label: 'Level', description: 'Output level.' }),
   };
   static groups = [
-    { id: 'playback', label: 'Playback', params: ['mode', 'tune'] },
+    { id: 'playback', label: 'Playback', params: ['bank', 'mode', 'tune'] },
     {
       id: 'amp', label: 'Amp envelope', params: ['attack', 'release'],
       role: 'envelope', bind: { attack: 'attack', release: 'release' },
@@ -56,44 +88,75 @@ export class Sampler extends Instrument {
     'Keys': { mode: 'gate', attack: 0.002, release: 0.3 },
     'Pad': { mode: 'gate', attack: 0.4, release: 1.5 },
   };
+  /**
+   * Every bank's metadata, { key: { label, type, keys } }, so an app can
+   * show a kit's rows before anything loads. `keys` is null for pitched banks.
+   */
+  static banks = Object.fromEntries(Object.entries(SAMPLE_BANKS).map(([key, { label, type }]) =>
+    [key, { label, type, keys: bankKeys(key) }]));
+  /** Base URL of the bank folders; see DEFAULT_BANK_ROOT. */
+  static bankRoot = DEFAULT_BANK_ROOT;
+
+  /** The default bank's keys, for describe(); read `sampler.keys` on an instance. */
+  static get keys() {
+    return bankKeys(this.params.bank.default);
+  }
+
+  #custom = false;   // playing zones from load() rather than the bank
+  #loading = null;   // the latest load, so a slow earlier one can't overwrite it
 
   constructor(ctx, params) {
     super(ctx, params);
     this.zones = [];
-    this.voices = new Map();   // note -> { source, amp }
+    this.voices = new Map();   // note -> { source, amp, choke }
+    this.ready = this.#loadBank(this.params.bank);
   }
 
-  static fromJSON(ctx, json) {
-    const sampler = new this(ctx, json?.params);
-    if (Array.isArray(json?.samples)) sampler.ready = sampler.load(json.samples);
-    return sampler;
+  applyParam(name, value, time) {
+    super.applyParam(name, value, time);
+    if (name === 'bank') {
+      this.allNotesOff(time);
+      this.ready = this.#loadBank(value);
+    }
   }
 
-  async load(zones) {
+  /** Play these zones instead of the bank, until the bank changes. */
+  load(zones) {
     const list = Array.isArray(zones) ? zones : [{ sample: zones }];
-    this.zones = await Promise.all(list.map(async ({ sample, root = 60, lo = 0, hi = 127, label }) => {
-      const buffer = sample instanceof AudioBuffer ? sample : await this.#fetch(sample);
-      return { buffer, url: typeof sample === 'string' ? sample : null, root, lo, hi, label };
+    this.#custom = true;
+    return (this.ready = this.#load(list));
+  }
+
+  #loadBank(key) {
+    const root = new URL(`${key}/`, new URL(this.constructor.bankRoot, globalThis.location?.href));
+    this.#custom = false;
+    return this.#load(bankZones(key).map(({ file, ...zone }) => ({ ...zone, sample: new URL(file, root).href })));
+  }
+
+  async #load(list) {
+    const loading = Symbol('load');
+    this.#loading = loading;
+    const zones = await Promise.all(list.map(async ({ sample, root = 60, lo = 0, hi = 127, label, choke }) => {
+      const buffer = sample instanceof AudioBuffer ? sample : await fetchBuffer(this.ctx, sample);
+      return { buffer, url: typeof sample === 'string' ? sample : null, root, lo, hi, label, choke };
     }));
+    if (this.#loading === loading) this.zones = zones;
   }
 
   /**
-   * A kit — every zone a single key — names its keys, from each zone's
-   * `label`, else its file name, else the note. Anything with a zone
-   * spanning a range is played chromatically, so it has none.
+   * A kit's keys, { note: label }: the bank's, known before it loads, or for
+   * zones from load(), each single-key zone's label, else its file name,
+   * else the note. Pitched banks, and anything with a zone spanning a
+   * range, play chromatically and have none.
    */
   get keys() {
+    if (!this.#custom) return bankKeys(this.params.bank);
     if (!this.zones.length || this.zones.some((z) => z.lo !== z.hi)) return null;
     const keys = {};
     for (const { lo, label, url } of this.zones) {
       keys[lo] = label ?? url?.split('/').pop().replace(/\.\w+$/, '') ?? noteName(lo);
     }
     return keys;
-  }
-
-  async #fetch(url) {
-    const bytes = await (await fetch(url)).arrayBuffer();
-    return this.ctx.decodeAudioData(bytes);
   }
 
   noteOn(note, velocity = 1, time) {
@@ -104,6 +167,11 @@ export class Sampler extends Instrument {
     const t = this.at(time);
     const p = this.params;
     this.#release(note, t, 0.005);
+    if (zone.choke) {
+      for (const [other, voice] of this.voices) {
+        if (voice.choke === zone.choke) this.#release(other, t, 0.005);
+      }
+    }
 
     const source = new AudioBufferSourceNode(this.ctx, {
       buffer: zone.buffer,
@@ -118,7 +186,7 @@ export class Sampler extends Instrument {
 
     envStart(amp.gain, t, { attack: p.attack, decay: 0.01, sustain: 1, peak: velocity });
     source.start(t);
-    this.voices.set(note, { source, amp });
+    this.voices.set(note, { source, amp, choke: zone.choke });
   }
 
   noteOff(note, time) {
@@ -136,12 +204,5 @@ export class Sampler extends Instrument {
     this.voices.delete(note);
     envRelease(voice.amp.gain, t, release);
     voice.source.stop(t + release * 2 + 0.05);
-  }
-
-  toJSON() {
-    const samples = this.zones
-      .filter((z) => z.url)
-      .map(({ url, root, lo, hi, label }) => ({ sample: url, root, lo, hi, label }));
-    return { ...super.toJSON(), samples };
   }
 }

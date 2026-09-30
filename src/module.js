@@ -94,6 +94,7 @@ export function describe(M) {
     presets: M.presets,
   };
   if (M.kind === 'instrument') Object.assign(info, { polyphony: M.polyphony, gated: M.gated, keys: M.keys });
+  if (M.banks) info.banks = M.banks;
   return JSON.parse(JSON.stringify(info));
 }
 

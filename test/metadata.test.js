@@ -3,9 +3,10 @@
 // the params they describe. No AudioContext needed: it's all static.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import {
   registry, manifest, describe, sanitizeParams, matches, noteName, parseNote, UNITS, Effect, num,
-  FMSynth, FM_ALGORITHMS, PolySynth, Chorus, CHORUS_MODES,
+  FMSynth, FM_ALGORITHMS, PolySynth, Chorus, CHORUS_MODES, Sampler, SAMPLE_BANKS, DRUM,
 } from '../src/index.js';
 
 const ROLES = {
@@ -163,4 +164,30 @@ test('poly synth chorus modes are valid Chorus settings', () => {
     const clean = sanitizeParams(Chorus, params);
     for (const [name, value] of Object.entries(params)) assert.equal(clean[name], value, `${mode}: '${name}'`);
   }
+});
+
+test('sample banks are the sampler\'s bank choices, with their files on disk', () => {
+  assert.deepEqual(Sampler.params.bank.values, Object.keys(SAMPLE_BANKS));
+  for (const [key, bank] of Object.entries(SAMPLE_BANKS)) {
+    assert.ok(bank.label, `${key}: label`);
+    assert.ok(['kit', 'pitched'].includes(bank.type), `${key}: type '${bank.type}'`);
+    assert.ok(bank.zones.length, `${key}: zones`);
+    const notes = new Set();
+    for (const zone of bank.zones) {
+      const where = `${key}/${zone.file}`;
+      assert.ok(existsSync(new URL(`../src/kits/${key}/${zone.file}`, import.meta.url)), `${where}: missing file`);
+      if (bank.type === 'kit') {
+        assert.ok(Number.isInteger(zone.note) && zone.label, `${where}: a kit zone needs a note and a label`);
+        assert.ok(!notes.has(zone.note), `${where}: note ${zone.note} used twice`);
+        notes.add(zone.note);
+      } else {
+        assert.ok(zone.lo <= zone.hi, `${where}: lo..hi`);
+      }
+    }
+  }
+  const info = describe(Sampler);
+  assert.equal(info.banks['909'].type, 'kit');
+  assert.equal(info.keys[DRUM.KICK], 'Kick');
+  // Kits follow General MIDI, so drum-synth patterns play the same sounds.
+  for (const [name, note] of Object.entries(DRUM)) assert.ok(info.banks['909'].keys[note], `909 has no ${name}`);
 });

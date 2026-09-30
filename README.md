@@ -143,7 +143,7 @@ from nothing but `describe()`.
 | `mono-synth` | instrument | osc + sub → resonant lowpass with decay env; last-note priority with glide (overlap notes to slide); warm character: curved saw, pitch drift, 24 dB filter with soft saturation |
 | `fm-synth` | instrument | 4-op FM, 8 voices, an envelope per operator; eight algorithms (stacks, forks, pairs, additive) in `FM_ALGORITHMS` as `[from, to]` pairs for drawing the routing |
 | `drum-synth` | instrument | synthesized kick, snare, clap, closed/open hat (choked); notes in `DRUM` |
-| `sampler` | instrument | AudioBuffers across key zones; pitched or kit, one-shot or gated |
+| `sampler` | instrument | plays one of the bundled `SAMPLE_BANKS` (see below): a kit, one sound per key, or a pitched bank across the keyboard; one-shot or gated, with choke groups |
 | `modal-synth` | instrument | struck bars, bowls and bells: a high-Q bandpass bank per note, rung by a noise burst; wood, glass, steel and bell mode tables |
 | `formant-synth` | instrument | detuned sawtooths through four vowel formants; sweep `vowel` from a to u to make it talk |
 | `poly-synth` | instrument | 6-voice analog-style poly: saw, pulse (PWM from a saw minus its delayed self), sub and noise → 24 dB resonant lowpass with one ADSR on filter and amp; shared LFO with fade-in; switchable highpass and built-in chorus modes I / II / I+II |
@@ -161,6 +161,35 @@ from nothing but `describe()`.
 
 Anything random (noise, reverb impulses) is seeded, so a song renders the
 same on every play and every machine.
+
+## Sample banks
+
+The sampler's sounds come from banks listed in
+[src/instruments/sample-banks.js](src/instruments/sample-banks.js), each
+keyed by its folder under `src/kits/`. A song stores only the `bank` param,
+a choice like any other, so untrusted song data can pick a bank but can't
+make the player fetch anything else. `describe(Sampler).banks` gives each
+bank's label, type (`kit` or `pitched`) and keys, so an app can show a kit's
+rows before its samples load.
+
+To add a bank, put its files in `src/kits/<key>/` and add an entry:
+
+```js
+808: {
+  label: 'TR-808',
+  type: 'kit',                     // or 'pitched', with zones { file, lo, hi, root }
+  zones: [
+    { file: 'BD.WAV', note: 36, label: 'Kick' },           // General MIDI notes, like DRUM
+    { file: 'CH.WAV', note: 42, label: 'Closed hat', choke: 'hat' },
+    { file: 'OH.WAV', note: 46, label: 'Open hat', choke: 'hat' },
+  ],
+},
+```
+
+`npm test` checks every file exists and no kit note is used twice. The build
+copies the kits to `dist/kits/`. The library finds them beside itself, at
+`src/kits/` as an ES module or `dist/kits/` as the bundle; set
+`Sampler.bankRoot` if you serve them from somewhere else.
 
 ## Writing your own
 

@@ -5,7 +5,7 @@
  * builder.
  */
 const {
-  MonoSynth, FMSynth, DrumSynth, ModalSynth, FormantSynth, PercSynth, PolySynth,
+  MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth, PolySynth,
   Drive, Delay, Reverb, Tape, AutoWah, Orbit, Compressor, PingPong, Limiter, EQ, Saturator, DRUM, chain, parseNote, create,
   describe, matches, sanitizeParams,
 } = gloamingInstruments;
@@ -48,6 +48,13 @@ const PATTERN = {
     [DRUM.CLOSED_HAT]: 'x.o.x.o.x.o.x.oo',
     [DRUM.OPEN_HAT]:   '..x...x...x...x.',
   },
+  // The sampled 909, on the sounds the drum synth doesn't have.
+  kit: {
+    37: '...o......o...o.',   // rim
+    45: '..............x.',   // low tom
+    47: '.............x..',   // mid tom
+    51: 'x...o...x...o...',   // ride
+  },
 };
 
 let ctx, master, scope, rig, timer, nextTime, step;
@@ -61,6 +68,7 @@ function buildRig() {
   const bass = new MonoSynth(ctx);
   const bells = new FMSynth(ctx);
   const drums = new DrumSynth(ctx);
+  const kit = new Sampler(ctx, { gain: 0.5 });
   const mallets = new ModalSynth(ctx, { gain: 0.4 });
   const perc = new PercSynth(ctx, { ...PercSynth.presets.Tom, gain: 0.6 });
   const voice = new FormantSynth(ctx, { vowel: 1.5, vibrato: 8, gain: 0.35 });
@@ -82,11 +90,12 @@ function buildRig() {
   chain(mallets, orbit, reverb);
   chain(voice, pingPong, master);
   chain(drums, master);
+  chain(kit, master);
   chain(pad, master);
   chain(perc, delay);
   chain(master, eq, comp, saturator, tape, limiter, scope, ctx.destination);
 
-  rig = { bass, bells, drums, perc, mallets, voice, pad, drive, wah, delay, reverb, orbit, pingPong, eq, comp, saturator, tape, limiter };
+  rig = { bass, bells, drums, kit, perc, mallets, voice, pad, drive, wah, delay, reverb, orbit, pingPong, eq, comp, saturator, tape, limiter };
   const panels = document.getElementById('panels');
   for (const [name, module] of Object.entries(rig)) panels.append(panel(name, module));
 }
@@ -115,10 +124,12 @@ function scheduleStep(i, t) {
       lineState.set(line, note);
     }
   }
-  for (const [note, line] of Object.entries(PATTERN.drums)) {
-    const c = line[i];
-    if (c === 'x') rig.drums.noteOn(Number(note), 1, t);
-    else if (c === 'o') rig.drums.noteOn(Number(note), 0.45, t);
+  for (const track of ['drums', 'kit']) {
+    for (const [note, line] of Object.entries(PATTERN[track])) {
+      const c = line[i];
+      if (c === 'x') rig[track].noteOn(Number(note), 1, t);
+      else if (c === 'o') rig[track].noteOn(Number(note), 0.45, t);
+    }
   }
 }
 
