@@ -175,8 +175,11 @@ bank's label, type (`kit` or `pitched`) and keys, so an app can show a kit's
 rows before its samples load.
 
 A kit places its sounds on the fixed `KIT_SLOTS` (General MIDI drum notes),
-and every slot has its own tune, decay and level params (`kickTune`,
-`kickDecay`, `kickLevel`, …) in a group whose `notes` name the slot. Each is
+and every slot has its own tune, release, direction, pan and level params
+(`kickTune`, `kickRelease`, `kickReverse`, `kickPan`, `kickLevel`) in a
+group whose `notes` name the slot. Release fades the hit out over its time
+(at full, the whole sample plays); a reversed hit instead keeps only the
+last `release` seconds of its swell. Each is
 `activeWhen` the bank is a kit using that slot, so an app can hide the rest.
 Pitched banks share the one `attack` / `release` envelope instead.
 

@@ -194,7 +194,7 @@ test('sample banks are the sampler\'s bank choices, with their files on disk', (
   // Every slot has its own controls, grouped under its note.
   for (const [note, { id }] of Object.entries(KIT_SLOTS)) {
     const group = info.groups.find((g) => g.notes?.includes(Number(note)));
-    assert.deepEqual(group?.params, [`${id}Tune`, `${id}Decay`, `${id}Level`], `slot ${note}`);
+    assert.deepEqual(group?.params, [`${id}Tune`, `${id}Release`, `${id}Reverse`, `${id}Pan`, `${id}Level`], `slot ${note}`);
   }
   assert.equal(info.banks['909'].type, 'kit');
   assert.equal(info.keys[DRUM.KICK], 'Kick');

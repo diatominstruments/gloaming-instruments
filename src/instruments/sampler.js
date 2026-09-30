@@ -31,26 +31,61 @@ function fetchBuffer(ctx, url) {
   return buffer;
 }
 
-// Every kit slot gets its own tune, decay and level, active only while the
-// bank is a kit that uses that slot. Decay holds the hit for half its time
-// then fades it out; at full, the sample plays to its end untouched.
-const DECAY_FULL = 4;
+// Every kit slot gets its own tune, release, pan, direction and level,
+// active only while the bank is a kit that uses that slot.
+//
+// Release fades the hit out over its time, along a curve that starts flat
+// and falls away toward the end, so the body of the hit keeps its punch and
+// long settings barely touch it. At full, the sample plays untouched. A
+// reversed hit swells *into* its end, so there release keeps only the last
+// part of the swell instead of fading it.
+const RELEASE_FULL = 4;
+const FADE = Float32Array.from({ length: 64 }, (_, i) => Math.cos((Math.PI / 2) * (i / 63)) ** 2);
+
 const kitsWith = (note) => banksOfType('kit').filter((key) => SAMPLE_BANKS[key].zones.some((z) => z.note === note));
 const SLOTS = Object.entries(KIT_SLOTS).map(([note, slot]) => ({
-  ...slot, note: Number(note), tune: `${slot.id}Tune`, decay: `${slot.id}Decay`, level: `${slot.id}Level`,
+  ...slot,
+  note: Number(note),
+  tune: `${slot.id}Tune`,
+  release: `${slot.id}Release`,
+  pan: `${slot.id}Pan`,
+  reverse: `${slot.id}Reverse`,
+  level: `${slot.id}Level`,
 }));
 const SLOT_PARAMS = {};
-for (const { note, label, tune, decay, level } of SLOTS) {
+for (const { note, label, tune, release, pan, reverse, level } of SLOTS) {
   const activeWhen = { bank: kitsWith(note) };
   const sound = label.toLowerCase();
   SLOT_PARAMS[tune] = num(-24, 24, 0, {
     unit: 'st', center: 0, activeWhen, label: 'Tune', description: `Transpose the ${sound}.`,
   });
-  SLOT_PARAMS[decay] = num(0.01, DECAY_FULL, DECAY_FULL, {
-    unit: 's', scale: 'log', activeWhen, marks: [{ value: DECAY_FULL, label: 'Full' }],
-    label: 'Decay', description: `How long the ${sound} rings before fading out; at full it plays to the end of its sample.`,
+  SLOT_PARAMS[release] = num(0.01, RELEASE_FULL, RELEASE_FULL, {
+    unit: 's', scale: 'log', activeWhen, marks: [{ value: RELEASE_FULL, label: 'Full' }],
+    label: 'Release',
+    description: `How long the ${sound} lasts: it fades out over this time (reversed, it swells in over it); at full it plays its whole sample.`,
+  });
+  SLOT_PARAMS[pan] = num(-1, 1, 0, {
+    center: 0, activeWhen, marks: [{ value: -1, label: 'L' }, { value: 1, label: 'R' }],
+    label: 'Pan', description: `Where the ${sound} sits, left to right.`,
+  });
+  SLOT_PARAMS[reverse] = choice(['forward', 'reverse'], 'forward', {
+    activeWhen, labels: { forward: 'Forward', reverse: 'Reverse' },
+    label: 'Direction', description: `Play the ${sound} backwards, swelling into the hit.`,
   });
   SLOT_PARAMS[level] = num(0, 1, 1, { unit: '%', activeWhen, label: 'Level', description: `Volume of the ${sound}.` });
+}
+
+// Reversed copies of buffers, made once each.
+const reversed = new WeakMap();
+
+function reverseBuffer(buffer) {
+  let copy = reversed.get(buffer);
+  if (!copy) {
+    copy = new AudioBuffer({ length: buffer.length, numberOfChannels: buffer.numberOfChannels, sampleRate: buffer.sampleRate });
+    for (let c = 0; c < buffer.numberOfChannels; c++) copy.copyToChannel(buffer.getChannelData(c).slice().reverse(), c);
+    reversed.set(buffer, copy);
+  }
+  return copy;
 }
 
 /**
@@ -60,8 +95,8 @@ for (const { note, label, tune, decay, level } of SLOTS) {
  * A zone plays its sample at original speed on `root` and repitches from
  * there.
  *
- * A kit's sounds sit on KIT_SLOTS, and each slot has its own tune, decay
- * and level. Pitched banks share one amp envelope, `attack` and `release`.
+ * A kit's sounds sit on KIT_SLOTS, and each slot has its own tune,
+ * release, pan, direction and level. Pitched banks share one amp envelope, `attack` and `release`.
  *
  * In 'one-shot' mode noteOff is ignored and each note chokes its own
  * previous hit (like a drum machine pad); in 'gate' mode notes release on
@@ -111,9 +146,9 @@ export class Sampler extends Instrument {
       id: 'amp', label: 'Amp envelope', params: ['attack', 'release'],
       role: 'envelope', bind: { attack: 'attack', release: 'release' },
     },
-    ...SLOTS.map(({ id, label, note, tune, decay, level }) => ({
-      id, label, notes: [note], params: [tune, decay, level],
-      role: 'envelope', bind: { attack: { value: 0.001 }, decay, sustain: { value: 0 } },
+    ...SLOTS.map(({ id, label, note, tune, release, pan, reverse, level }) => ({
+      id, label, notes: [note], params: [tune, release, reverse, pan, level],
+      role: 'envelope', bind: { attack: { value: 0.001 }, release },
     })),
     { id: 'output', label: 'Output', params: ['gain'] },
   ];
@@ -143,10 +178,13 @@ export class Sampler extends Instrument {
     super(ctx, params);
     this.zones = [];
     this.voices = new Map();   // note -> { source, amp, choke }
-    this.buses = new Map();    // kit slot note -> its level, into the output
-    for (const { note, level } of SLOTS) {
-      const bus = new GainNode(ctx, { gain: this.params[level] });
-      bus.connect(this.output);
+    this.buses = new Map();    // kit slot note -> { level, pan }, into the output
+    for (const { note, level, pan } of SLOTS) {
+      const bus = {
+        level: new GainNode(ctx, { gain: this.params[level] }),
+        pan: new StereoPannerNode(ctx, { pan: this.params[pan] }),
+      };
+      bus.level.connect(bus.pan).connect(this.output);
       this.buses.set(note, bus);
     }
     this.ready = this.#loadBank(this.params.bank);
@@ -154,8 +192,10 @@ export class Sampler extends Instrument {
 
   applyParam(name, value, time) {
     super.applyParam(name, value, time);
-    const slot = SLOTS.find((s) => s.level === name);
-    if (slot) this.buses.get(slot.note).gain.setTargetAtTime(value, time, SMOOTH);
+    for (const { note, level, pan } of SLOTS) {
+      if (name === level) this.buses.get(note).level.gain.setTargetAtTime(value, time, SMOOTH);
+      if (name === pan) this.buses.get(note).pan.pan.setTargetAtTime(value, time, SMOOTH);
+    }
     if (name === 'bank') {
       this.allNotesOff(time);
       this.ready = this.#loadBank(value);
@@ -216,30 +256,41 @@ export class Sampler extends Instrument {
     }
 
     // A single-key zone on a kit slot is a drum: it plays through the slot's
-    // tune, decay and level. Anything else is pitched, on the shared envelope.
+    // controls. Anything else is pitched, on the shared envelope.
     const slot = zone.lo === zone.hi ? SLOTS.find((s) => s.note === zone.lo) : null;
+    const backwards = slot && p[slot.reverse] === 'reverse';
+    const rate = 2 ** ((note - zone.root + p.tune + (slot ? p[slot.tune] : 0)) / 12);
     const source = new AudioBufferSourceNode(this.ctx, {
-      buffer: zone.buffer,
-      playbackRate: 2 ** ((note - zone.root + p.tune + (slot ? p[slot.tune] : 0)) / 12),
+      buffer: backwards ? reverseBuffer(zone.buffer) : zone.buffer,
+      playbackRate: rate,
     });
+    // Two gains: `shape` carries the slot's release, `amp` the attack and
+    // any choke or note-off, so cutting a note never collides with the
+    // release curve already scheduled.
+    const shape = new GainNode(this.ctx);
     const amp = new GainNode(this.ctx, { gain: 0 });
-    source.connect(amp).connect(slot ? this.buses.get(slot.note) : this.output);
+    source.connect(shape).connect(amp).connect(slot ? this.buses.get(slot.note).level : this.output);
     source.onended = () => {
       amp.disconnect();
       if (this.voices.get(note)?.source === source) this.voices.delete(note);
     };
 
-    source.start(t);
-    if (slot) {
-      amp.gain.setValueAtTime(0, t);
-      amp.gain.linearRampToValueAtTime(velocity, t + 0.001);
-      const decay = p[slot.decay];
-      if (decay < DECAY_FULL) {
-        amp.gain.setTargetAtTime(0, t + decay / 2, decay / 6);
-        source.stop(t + decay * 1.5);   // ~50 dB down
-      }
-    } else {
+    if (!slot) {
+      source.start(t);
       envStart(amp.gain, t, { attack: p.attack, decay: 0.01, sustain: 1, peak: velocity });
+    } else {
+      const release = p[slot.release];
+      const full = release >= RELEASE_FULL;
+      // Reversed, skip ahead so only the last `release` seconds of the swell
+      // play, fading in briefly where it now starts mid-sample.
+      const offset = backwards && !full ? Math.max(0, zone.buffer.duration - release * rate) : 0;
+      source.start(t, offset);
+      amp.gain.setValueAtTime(0, t);
+      amp.gain.linearRampToValueAtTime(velocity, t + (offset ? 0.005 : 0.001));
+      if (!full && !backwards) {
+        shape.gain.setValueCurveAtTime(FADE, t, release);
+        source.stop(t + release + 0.01);
+      }
     }
     this.voices.set(note, { source, amp, choke: zone.choke });
   }
