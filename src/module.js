@@ -29,6 +29,12 @@ import { clamp, SMOOTH } from './util.js';
  *   unit         one of UNITS, so an app can format values (0.02 s → 20 ms)
  *   labels       choices only: display names for the values, { value: label };
  *                the values themselves are ids stored in songs
+ *   catalog      choices only: true when the values are a library that
+ *                grows (sample banks), not a handful of modes, so an app
+ *                should offer a menu or list that works at any length
+ *                rather than a row of buttons
+ *   categories   choices only: a heading for each value, { value: heading },
+ *                for sectioning a long list ('Kits', 'Pitched')
  *   marks        named points on a number's range, [{ value, label }], for
  *                ticks or detents (the vowels on a formant synth's `vowel`)
  *   center       the value a control rests at and fills outward from, for

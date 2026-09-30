@@ -8,42 +8,65 @@
  *   label  display name
  *   type   'kit': one sample per key, played one-shot with rows per sound;
  *          'pitched': zones spread across the keyboard and repitched
- *   zones  { file, lo, hi, root, label, choke }
- *            file   in the bank's folder
- *            lo/hi  the notes it plays on; a kit zone gives just `note`
- *            root   the note it plays at original speed (defaults to lo)
- *            label  kits: the key's name
+ *   zones  kits: { file, note, label, choke }
+ *            note   one of KIT_SLOTS, which gives the sound its controls
+ *            label  the key's name, if not the slot's
  *            choke  zones sharing a choke group cut each other off (the
  *                   closed hat silencing the open one)
- *
- * Kit notes follow General MIDI, like DRUM, so a pattern written for the
- * drum synth plays the same sounds on a sampled kit.
+ *          pitched: { file, lo, hi, root }
+ *            lo/hi  the notes it plays on
+ *            root   the note it plays at original speed (defaults to lo)
  */
+
+/**
+ * The notes a kit can use, each with its own tune, decay and level params
+ * on the Sampler. They follow General MIDI, like DRUM, so a pattern written
+ * for the drum synth plays the same sounds on a sampled kit. Params are
+ * named after the slot, so a kit is free to put any sound on any slot, but
+ * adding a slot adds params: extend this list rather than renaming it.
+ */
+export const KIT_SLOTS = deepFreeze({
+  36: { id: 'kick', label: 'Kick' },
+  37: { id: 'rim', label: 'Rim' },
+  38: { id: 'snare', label: 'Snare' },
+  39: { id: 'clap', label: 'Clap' },
+  42: { id: 'closedHat', label: 'Closed hat' },
+  45: { id: 'lowTom', label: 'Low tom' },
+  46: { id: 'openHat', label: 'Open hat' },
+  47: { id: 'midTom', label: 'Mid tom' },
+  49: { id: 'crash', label: 'Crash' },
+  50: { id: 'highTom', label: 'High tom' },
+  51: { id: 'ride', label: 'Ride' },
+});
+
 export const SAMPLE_BANKS = deepFreeze({
   909: {
     label: 'TR-909',
     type: 'kit',
     zones: [
-      { file: 'BD.WAV', note: 36, label: 'Kick' },
-      { file: 'RIM.WAV', note: 37, label: 'Rim' },
-      { file: 'SNARE.WAV', note: 38, label: 'Snare' },
-      { file: 'CLAP.WAV', note: 39, label: 'Clap' },
-      { file: 'CLOSED_HAT.WAV', note: 42, label: 'Closed hat', choke: 'hat' },
-      { file: 'LOW_TOM.WAV', note: 45, label: 'Low tom' },
-      { file: 'OPEN_HAT.WAV', note: 46, label: 'Open hat', choke: 'hat' },
-      { file: 'MID_TOM.WAV', note: 47, label: 'Mid tom' },
-      { file: 'CRASH.WAV', note: 49, label: 'Crash' },
-      { file: 'HIGH_TOM.WAV', note: 50, label: 'High tom' },
-      { file: 'RIDE.WAV', note: 51, label: 'Ride' },
+      { file: 'BD.WAV', note: 36 },
+      { file: 'RIM.WAV', note: 37 },
+      { file: 'SNARE.WAV', note: 38 },
+      { file: 'CLAP.WAV', note: 39 },
+      { file: 'CLOSED_HAT.WAV', note: 42, choke: 'hat' },
+      { file: 'LOW_TOM.WAV', note: 45 },
+      { file: 'OPEN_HAT.WAV', note: 46, choke: 'hat' },
+      { file: 'MID_TOM.WAV', note: 47 },
+      { file: 'CRASH.WAV', note: 49 },
+      { file: 'HIGH_TOM.WAV', note: 50 },
+      { file: 'RIDE.WAV', note: 51 },
     ],
   },
 });
 
 /** A bank's zones with the kit shorthand expanded: every zone has lo, hi and root. */
 export function bankZones(key) {
-  return (SAMPLE_BANKS[key]?.zones ?? []).map(({ note, lo = note, hi = note, root = lo, ...rest }) =>
-    ({ ...rest, lo, hi, root }));
+  return (SAMPLE_BANKS[key]?.zones ?? []).map(({ note, lo = note, hi = note, root = lo, label, ...rest }) =>
+    ({ ...rest, lo, hi, root, label: label ?? KIT_SLOTS[note]?.label }));
 }
+
+/** The keys of the banks of one type. */
+export const banksOfType = (type) => Object.keys(SAMPLE_BANKS).filter((key) => SAMPLE_BANKS[key].type === type);
 
 /** A kit's keys, { note: label }; null for pitched banks, which play chromatically. */
 export function bankKeys(key) {

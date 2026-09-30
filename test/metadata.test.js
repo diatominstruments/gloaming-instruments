@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import {
   registry, manifest, describe, sanitizeParams, matches, noteName, parseNote, UNITS, Effect, num,
-  FMSynth, FM_ALGORITHMS, PolySynth, Chorus, CHORUS_MODES, Sampler, SAMPLE_BANKS, DRUM,
+  FMSynth, FM_ALGORITHMS, PolySynth, Chorus, CHORUS_MODES, Sampler, SAMPLE_BANKS, KIT_SLOTS, DRUM,
 } from '../src/index.js';
 
 const ROLES = {
@@ -44,6 +44,8 @@ for (const M of registry.values()) {
         if (spec.type === 'choice') {
           assert.ok(spec.values.includes(spec.default), `${where}: default`);
           if (spec.labels) assert.deepEqual(Object.keys(spec.labels).sort(), [...spec.values].sort(), `${where}: labels`);
+          if (spec.categories) assert.deepEqual(Object.keys(spec.categories).sort(), [...spec.values].sort(), `${where}: categories`);
+          if ('catalog' in spec) assert.equal(typeof spec.catalog, 'boolean', `${where}: catalog`);
           continue;
         }
         const inRange = (v) => v >= spec.min && v <= spec.max;
@@ -71,8 +73,10 @@ for (const M of registry.values()) {
           assert.ok(!seen.has(name), `'${name}' is in both '${seen.get(name)}' and '${group.id}'`);
           seen.set(name, group.id);
         }
+        // A sampler's keys depend on its bank, so its groups may name any bank's.
+        const keys = M.banks ? Object.assign({}, ...Object.values(M.banks).map((b) => b.keys)) : M.keys;
         for (const note of group.notes ?? []) {
-          assert.ok(M.keys?.[note], `group '${group.id}': note ${note} isn't one of the instrument's keys`);
+          assert.ok(keys?.[note], `group '${group.id}': note ${note} isn't one of the instrument's keys`);
         }
         if (group.role) {
           assert.ok(ROLES[group.role], `group '${group.id}': unknown role '${group.role}'`);
@@ -177,7 +181,7 @@ test('sample banks are the sampler\'s bank choices, with their files on disk', (
       const where = `${key}/${zone.file}`;
       assert.ok(existsSync(new URL(`../src/kits/${key}/${zone.file}`, import.meta.url)), `${where}: missing file`);
       if (bank.type === 'kit') {
-        assert.ok(Number.isInteger(zone.note) && zone.label, `${where}: a kit zone needs a note and a label`);
+        assert.ok(KIT_SLOTS[zone.note], `${where}: note ${zone.note} isn't a kit slot`);
         assert.ok(!notes.has(zone.note), `${where}: note ${zone.note} used twice`);
         notes.add(zone.note);
       } else {
@@ -186,6 +190,12 @@ test('sample banks are the sampler\'s bank choices, with their files on disk', (
     }
   }
   const info = describe(Sampler);
+  assert.equal(info.params.bank.catalog, true);
+  // Every slot has its own controls, grouped under its note.
+  for (const [note, { id }] of Object.entries(KIT_SLOTS)) {
+    const group = info.groups.find((g) => g.notes?.includes(Number(note)));
+    assert.deepEqual(group?.params, [`${id}Tune`, `${id}Decay`, `${id}Level`], `slot ${note}`);
+  }
   assert.equal(info.banks['909'].type, 'kit');
   assert.equal(info.keys[DRUM.KICK], 'Kick');
   // Kits follow General MIDI, so drum-synth patterns play the same sounds.

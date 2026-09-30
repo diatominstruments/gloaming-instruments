@@ -228,7 +228,13 @@ function control(module, param, spec, refresh) {
 
   if (spec.type === 'choice') {
     input = el('select');
-    for (const v of spec.values) input.add(new Option(spec.labels?.[v] ?? v, v));
+    // Categories become sections of the menu.
+    const sections = new Map();
+    for (const v of spec.values) {
+      const heading = spec.categories?.[v];
+      if (heading && !sections.has(heading)) sections.set(heading, input.appendChild(el('optgroup', { label: heading })));
+      (sections.get(heading) ?? input).append(new Option(spec.labels?.[v] ?? v, v));
+    }
     input.oninput = () => { module.setParam(param, input.value); refresh(); };
     update = () => { input.value = module.params[param]; };
   } else {

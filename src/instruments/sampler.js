@@ -1,6 +1,6 @@
 import { Instrument, num, choice } from '../module.js';
-import { envStart, envRelease, noteName } from '../util.js';
-import { SAMPLE_BANKS, bankZones, bankKeys } from './sample-banks.js';
+import { envStart, envRelease, noteName, SMOOTH } from '../util.js';
+import { SAMPLE_BANKS, KIT_SLOTS, bankZones, bankKeys, banksOfType } from './sample-banks.js';
 
 // Where bank folders are served from. As an ES module the library finds
 // src/kits/ beside its own source; the IIFE bundle has no import.meta, so it
@@ -31,12 +31,37 @@ function fetchBuffer(ctx, url) {
   return buffer;
 }
 
+// Every kit slot gets its own tune, decay and level, active only while the
+// bank is a kit that uses that slot. Decay holds the hit for half its time
+// then fades it out; at full, the sample plays to its end untouched.
+const DECAY_FULL = 4;
+const kitsWith = (note) => banksOfType('kit').filter((key) => SAMPLE_BANKS[key].zones.some((z) => z.note === note));
+const SLOTS = Object.entries(KIT_SLOTS).map(([note, slot]) => ({
+  ...slot, note: Number(note), tune: `${slot.id}Tune`, decay: `${slot.id}Decay`, level: `${slot.id}Level`,
+}));
+const SLOT_PARAMS = {};
+for (const { note, label, tune, decay, level } of SLOTS) {
+  const activeWhen = { bank: kitsWith(note) };
+  const sound = label.toLowerCase();
+  SLOT_PARAMS[tune] = num(-24, 24, 0, {
+    unit: 'st', center: 0, activeWhen, label: 'Tune', description: `Transpose the ${sound}.`,
+  });
+  SLOT_PARAMS[decay] = num(0.01, DECAY_FULL, DECAY_FULL, {
+    unit: 's', scale: 'log', activeWhen, marks: [{ value: DECAY_FULL, label: 'Full' }],
+    label: 'Decay', description: `How long the ${sound} rings before fading out; at full it plays to the end of its sample.`,
+  });
+  SLOT_PARAMS[level] = num(0, 1, 1, { unit: '%', activeWhen, label: 'Level', description: `Volume of the ${sound}.` });
+}
+
 /**
  * Sampler — plays AudioBuffers across key zones. Its sounds come from one of
  * the hardcoded SAMPLE_BANKS, chosen by the `bank` param: a kit (one sample
  * per key, named in `keys`) or a pitched bank (zones across the keyboard).
  * A zone plays its sample at original speed on `root` and repitches from
  * there.
+ *
+ * A kit's sounds sit on KIT_SLOTS, and each slot has its own tune, decay
+ * and level. Pitched banks share one amp envelope, `attack` and `release`.
  *
  * In 'one-shot' mode noteOff is ignored and each note chokes its own
  * previous hit (like a drum machine pad); in 'gate' mode notes release on
@@ -58,6 +83,9 @@ export class Sampler extends Instrument {
     bank: choice(Object.keys(SAMPLE_BANKS), '909', {
       label: 'Bank', description: 'The set of samples to play.',
       labels: Object.fromEntries(Object.entries(SAMPLE_BANKS).map(([key, bank]) => [key, bank.label])),
+      catalog: true,
+      categories: Object.fromEntries(Object.entries(SAMPLE_BANKS).map(([key, bank]) =>
+        [key, bank.type === 'kit' ? 'Kits' : 'Pitched'])),
     }),
     mode: choice(['one-shot', 'gate'], 'one-shot', {
       label: 'Mode', description: 'One-shot plays each sample to the end; gated stops it at note off.',
@@ -67,12 +95,14 @@ export class Sampler extends Instrument {
       unit: 'st', center: 0, primary: true, label: 'Tune', description: 'Transpose every zone.',
     }),
     attack: num(0.001, 2, 0.001, {
-      unit: 's', scale: 'log', label: 'Attack', description: 'Fade-in at the start of a note.',
+      unit: 's', scale: 'log', activeWhen: { bank: banksOfType('pitched') },
+      label: 'Attack', description: 'Fade-in at the start of a note.',
     }),
     release: num(0.005, 4, 0.05, {
       unit: 's', scale: 'log', activeWhen: { mode: 'gate' },
       label: 'Release', description: 'Fade-out after the note ends.',
     }),
+    ...SLOT_PARAMS,
     gain: num(0, 1, 0.8, { unit: '%', primary: true, label: 'Level', description: 'Output level.' }),
   };
   static groups = [
@@ -81,6 +111,10 @@ export class Sampler extends Instrument {
       id: 'amp', label: 'Amp envelope', params: ['attack', 'release'],
       role: 'envelope', bind: { attack: 'attack', release: 'release' },
     },
+    ...SLOTS.map(({ id, label, note, tune, decay, level }) => ({
+      id, label, notes: [note], params: [tune, decay, level],
+      role: 'envelope', bind: { attack: { value: 0.001 }, decay, sustain: { value: 0 } },
+    })),
     { id: 'output', label: 'Output', params: ['gain'] },
   ];
   static presets = {
@@ -109,11 +143,19 @@ export class Sampler extends Instrument {
     super(ctx, params);
     this.zones = [];
     this.voices = new Map();   // note -> { source, amp, choke }
+    this.buses = new Map();    // kit slot note -> its level, into the output
+    for (const { note, level } of SLOTS) {
+      const bus = new GainNode(ctx, { gain: this.params[level] });
+      bus.connect(this.output);
+      this.buses.set(note, bus);
+    }
     this.ready = this.#loadBank(this.params.bank);
   }
 
   applyParam(name, value, time) {
     super.applyParam(name, value, time);
+    const slot = SLOTS.find((s) => s.level === name);
+    if (slot) this.buses.get(slot.note).gain.setTargetAtTime(value, time, SMOOTH);
     if (name === 'bank') {
       this.allNotesOff(time);
       this.ready = this.#loadBank(value);
@@ -173,19 +215,32 @@ export class Sampler extends Instrument {
       }
     }
 
+    // A single-key zone on a kit slot is a drum: it plays through the slot's
+    // tune, decay and level. Anything else is pitched, on the shared envelope.
+    const slot = zone.lo === zone.hi ? SLOTS.find((s) => s.note === zone.lo) : null;
     const source = new AudioBufferSourceNode(this.ctx, {
       buffer: zone.buffer,
-      playbackRate: 2 ** ((note - zone.root + p.tune) / 12),
+      playbackRate: 2 ** ((note - zone.root + p.tune + (slot ? p[slot.tune] : 0)) / 12),
     });
     const amp = new GainNode(this.ctx, { gain: 0 });
-    source.connect(amp).connect(this.output);
+    source.connect(amp).connect(slot ? this.buses.get(slot.note) : this.output);
     source.onended = () => {
       amp.disconnect();
       if (this.voices.get(note)?.source === source) this.voices.delete(note);
     };
 
-    envStart(amp.gain, t, { attack: p.attack, decay: 0.01, sustain: 1, peak: velocity });
     source.start(t);
+    if (slot) {
+      amp.gain.setValueAtTime(0, t);
+      amp.gain.linearRampToValueAtTime(velocity, t + 0.001);
+      const decay = p[slot.decay];
+      if (decay < DECAY_FULL) {
+        amp.gain.setTargetAtTime(0, t + decay / 2, decay / 6);
+        source.stop(t + decay * 1.5);   // ~50 dB down
+      }
+    } else {
+      envStart(amp.gain, t, { attack: p.attack, decay: 0.01, sustain: 1, peak: velocity });
+    }
     this.voices.set(note, { source, amp, choke: zone.choke });
   }
 

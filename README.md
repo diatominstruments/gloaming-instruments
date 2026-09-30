@@ -118,6 +118,8 @@ static presets = { 'Acid': { cutoff: 300, resonance: 18, envMod: 3.5 }, … };
 | `label`, `description` | display name (read under its group heading) and a sentence for tooltips |
 | `unit` | one of `UNITS`: `Hz s dB st ct oct m % × :1`; `%` values are 0..1 fractions, `:1` a ratio |
 | `labels` | choices: display names for the stored values |
+| `catalog` | choices: the values are a growing library (sample banks), so offer a menu or list rather than buttons |
+| `categories` | choices: a heading per value, `{ value: heading }`, for sectioning a long list |
 | `marks` | named points on a range, `[{ value, label }]` (a formant synth's vowels) |
 | `center` | where a control rests and fills from, for ranges straddling zero |
 | `primary` | the two or three params to show when there's only room for a few |
@@ -172,6 +174,12 @@ make the player fetch anything else. `describe(Sampler).banks` gives each
 bank's label, type (`kit` or `pitched`) and keys, so an app can show a kit's
 rows before its samples load.
 
+A kit places its sounds on the fixed `KIT_SLOTS` (General MIDI drum notes),
+and every slot has its own tune, decay and level params (`kickTune`,
+`kickDecay`, `kickLevel`, …) in a group whose `notes` name the slot. Each is
+`activeWhen` the bank is a kit using that slot, so an app can hide the rest.
+Pitched banks share the one `attack` / `release` envelope instead.
+
 To add a bank, put its files in `src/kits/<key>/` and add an entry:
 
 ```js
@@ -179,14 +187,16 @@ To add a bank, put its files in `src/kits/<key>/` and add an entry:
   label: 'TR-808',
   type: 'kit',                     // or 'pitched', with zones { file, lo, hi, root }
   zones: [
-    { file: 'BD.WAV', note: 36, label: 'Kick' },           // General MIDI notes, like DRUM
-    { file: 'CH.WAV', note: 42, label: 'Closed hat', choke: 'hat' },
-    { file: 'OH.WAV', note: 46, label: 'Open hat', choke: 'hat' },
+    { file: 'BD.WAV', note: 36 },                 // a note from KIT_SLOTS
+    { file: 'COW.WAV', note: 37, label: 'Cowbell' }, // any sound on any slot
+    { file: 'CH.WAV', note: 42, choke: 'hat' },
+    { file: 'OH.WAV', note: 46, choke: 'hat' },
   ],
 },
 ```
 
-`npm test` checks every file exists and no kit note is used twice. The build
+`npm test` checks every file exists and each kit note is a slot used once.
+Adding a slot to `KIT_SLOTS` adds params, so extend it rather than rename it. The build
 copies the kits to `dist/kits/`. The library finds them beside itself, at
 `src/kits/` as an ES module or `dist/kits/` as the bundle; set
 `Sampler.bankRoot` if you serve them from somewhere else.
