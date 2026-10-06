@@ -31,12 +31,14 @@ export const KIT_SLOTS = deepFreeze({
   38: { id: 'snare', label: 'Snare' },
   39: { id: 'clap', label: 'Clap' },
   42: { id: 'closedHat', label: 'Closed hat' },
+  44: { id: 'pedalHat', label: 'Pedal hat' },
   45: { id: 'lowTom', label: 'Low tom' },
   46: { id: 'openHat', label: 'Open hat' },
   47: { id: 'midTom', label: 'Mid tom' },
   49: { id: 'crash', label: 'Crash' },
   50: { id: 'highTom', label: 'High tom' },
   51: { id: 'ride', label: 'Ride' },
+  54: { id: 'tambourine', label: 'Tambourine' },
 });
 
 export const SAMPLE_BANKS = deepFreeze({
@@ -55,6 +57,19 @@ export const SAMPLE_BANKS = deepFreeze({
       { file: 'CRASH.WAV', note: 49 },
       { file: 'HIGH_TOM.WAV', note: 50 },
       { file: 'RIDE.WAV', note: 51 },
+    ],
+  },
+  DIRT: {
+    label: 'Dirt',
+    type: 'kit',
+    zones: [
+      { file: 'KICK.wav', note: 36 },
+      { file: 'SNARE.wav', note: 38 },
+      { file: 'HAT_1.wav', note: 42, label: 'Hat 1', choke: 'hat' },
+      { file: 'HAT_2.wav', note: 44, label: 'Hat 2', choke: 'hat' },
+      { file: 'SUB_BD.wav', note: 45, label: 'Sub kick' },
+      { file: 'OPEN_HAT.wav', note: 46, choke: 'hat' },
+      { file: 'PERC.wav', note: 54, label: 'Perc' },
     ],
   },
 });
