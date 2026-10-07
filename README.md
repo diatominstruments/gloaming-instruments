@@ -142,7 +142,7 @@ from nothing but `describe()`.
 
 | id | kind | |
 |---|---|---|
-| `mono-synth` | instrument | osc + sub → resonant lowpass with decay env; last-note priority with glide (overlap notes to slide); warm character: curved saw, pitch drift, 24 dB filter with soft saturation |
+| `mono-synth` | instrument | two oscs (saw, square, pulse with PWM, …) + sub (1 or 2 oct down) + noise → key-tracked resonant lowpass with decay env; LFO (triangle, square, ramp, sample-and-hold; free or note-synced, with fade-in) for vibrato, filter and PWM; last-note priority with glide (overlap notes to slide); warm character: curved saws, pitch drift, 24 dB filter with soft saturation |
 | `fm-synth` | instrument | 4-op FM, 8 voices, an envelope per operator; eight algorithms (stacks, forks, pairs, additive) in `FM_ALGORITHMS` as `[from, to]` pairs for drawing the routing |
 | `drum-synth` | instrument | synthesized kick, snare, clap, closed/open hat (choked); notes in `DRUM` |
 | `sampler` | instrument | plays one of the bundled `SAMPLE_BANKS` (see below): a kit, one sound per key, or a pitched bank across the keyboard; one-shot or gated, with choke groups |
