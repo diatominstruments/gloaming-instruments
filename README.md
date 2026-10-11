@@ -147,7 +147,7 @@ from nothing but `describe()`.
 | `drum-synth` | instrument | synthesized kick, snare, clap, closed/open hat (choked); notes in `DRUM` |
 | `sampler` | instrument | plays one of the bundled `SAMPLE_BANKS` (see below): a kit, one sound per key, or a pitched bank across the keyboard; one-shot or gated, with choke groups |
 | `modal-synth` | instrument | struck bars, bowls and bells: a high-Q bandpass bank per note, rung by a noise burst; wood, glass, steel and bell mode tables |
-| `formant-synth` | instrument | detuned sawtooths through four vowel formants; sweep `vowel` from a to u to make it talk |
+| `formant-synth` | instrument | 1–6 detuned oscillators per note plus breath noise, through a tone lowpass and four vowel formants; sweep `vowel` from a to u to make it talk, or let each note glide in from `vowelStart` and an LFO move it; formant `shift` for bigger or smaller throats; poly or mono with glide |
 | `poly-synth` | instrument | 6-voice analog-style poly: saw, pulse (PWM from a saw minus its delayed self), sub and noise → 24 dB resonant lowpass with one ADSR on filter and amp; shared LFO with fade-in; switchable highpass and built-in chorus modes I / II / I+II |
 | `perc-synth` | instrument | two oscillators cross-modulating each other's frequency, plus filtered noise; ADSR pitch envelope on osc 1, retriggered LFO sent to pitch, cross-mod, noise or amp; one-shot or gated |
 | `filter` | effect | resonant biquad |
