@@ -6,7 +6,7 @@
  */
 const {
   MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth, PolySynth,
-  Drive, Delay, Reverb, Tape, AutoWah, Orbit, Compressor, PingPong, Limiter, EQ, Saturator, DRUM, chain, parseNote, create,
+  Drive, Delay, Reverb, AuroraReverb, Tape, AutoWah, Orbit, Compressor, PingPong, Limiter, EQ, Saturator, DRUM, chain, parseNote, create,
   describe, matches, sanitizeParams,
 } = gloamingInstruments;
 
@@ -84,6 +84,7 @@ function buildRig() {
   const saturator = new Saturator(ctx, Saturator.presets.Warmth);
   const limiter = new Limiter(ctx, Limiter.presets.Loud);
   const pad = new PolySynth(ctx, { ...PolySynth.presets.Pad, gain: 0.25 });
+  const aurora = new AuroraReverb(ctx, { ...AuroraReverb.presets.Shimmer, mix: 0.35 });
 
   chain(bass, drive, wah, delay, master);
   chain(bells, reverb, master);
@@ -91,11 +92,11 @@ function buildRig() {
   chain(voice, pingPong, master);
   chain(drums, master);
   chain(kit, master);
-  chain(pad, master);
+  chain(pad, aurora, master);
   chain(perc, delay);
   chain(master, eq, comp, saturator, tape, limiter, scope, ctx.destination);
 
-  rig = { bass, bells, drums, kit, perc, mallets, voice, pad, drive, wah, delay, reverb, orbit, pingPong, eq, comp, saturator, tape, limiter };
+  rig = { bass, bells, drums, kit, perc, mallets, voice, pad, drive, wah, delay, reverb, aurora, orbit, pingPong, eq, comp, saturator, tape, limiter };
   const panels = document.getElementById('panels');
   for (const [name, module] of Object.entries(rig)) panels.append(panel(name, module));
 }

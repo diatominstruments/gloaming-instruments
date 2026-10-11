@@ -154,6 +154,7 @@ from nothing but `describe()`.
 | `drive` | effect | tanh saturation + tone |
 | `delay` | effect | feedback delay, darkening repeats |
 | `reverb` | effect | convolution with a seeded, generated impulse |
+| `aurora-reverb` | effect | algorithmic stereo reverb: allpass diffusion into eight modulated delay lines mixed by a Hadamard matrix, with per-line damping and exact decay times; shimmer pitch-shifts part of the tail on every pass (+5th, +1 oct, +1 oct 5th or −1 oct) so it climbs as it rings; freeze holds it indefinitely |
 | `tape` | effect | wow and flutter, tanh saturation, head rolloff, seeded hiss |
 | `auto-wah` | effect | resonant filter opened by an envelope follower built from a rectifying WaveShaper and a smoothing lowpass |
 | `orbit` | effect | HRTF panner circling the listener on two LFOs; for headphones |

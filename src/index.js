@@ -11,6 +11,7 @@ import { Filter } from './effects/filter.js';
 import { Drive } from './effects/drive.js';
 import { Delay } from './effects/delay.js';
 import { Reverb } from './effects/reverb.js';
+import { AuroraReverb } from './effects/aurora-reverb.js';
 import { Tape } from './effects/tape.js';
 import { AutoWah } from './effects/auto-wah.js';
 import { Orbit } from './effects/orbit.js';
@@ -31,13 +32,13 @@ export { SAMPLE_BANKS, KIT_SLOTS } from './instruments/sample-banks.js';
 export { CHORUS_MODES } from './effects/chorus.js';
 export {
   MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth, PolySynth,
-  Filter, Drive, Delay, Reverb, Tape, AutoWah, Orbit, Compressor, PingPong, Chorus,
+  Filter, Drive, Delay, Reverb, AuroraReverb, Tape, AutoWah, Orbit, Compressor, PingPong, Chorus,
   Limiter, EQ, Saturator,
 };
 
 const MODULES = [
   MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth, PolySynth,
-  Filter, Drive, Delay, Reverb, Tape, AutoWah, Orbit, Compressor, PingPong, Chorus,
+  Filter, Drive, Delay, Reverb, AuroraReverb, Tape, AutoWah, Orbit, Compressor, PingPong, Chorus,
   Limiter, EQ, Saturator,
 ];
 
@@ -61,6 +62,7 @@ export const EFFECT = Object.freeze({
   DRIVE: Drive.id,
   DELAY: Delay.id,
   REVERB: Reverb.id,
+  AURORA_REVERB: AuroraReverb.id,
   TAPE: Tape.id,
   AUTO_WAH: AutoWah.id,
   ORBIT: Orbit.id,
