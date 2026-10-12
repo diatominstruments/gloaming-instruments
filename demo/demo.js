@@ -5,7 +5,7 @@
  * builder.
  */
 const {
-  MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth, PolySynth,
+  MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth, PolySynth, CumulusPoly,
   Drive, Delay, Reverb, AuroraReverb, Tape, AutoWah, Orbit, Compressor, PingPong, Limiter, EQ, Saturator, DRUM, chain, parseNote, create,
   describe, matches, sanitizeParams,
 } = gloamingInstruments;
@@ -37,6 +37,11 @@ const PATTERN = {
     'C-4 --- --- --- --- --- --- === A#3 --- --- --- --- --- --- ===',
     'D#4 --- --- --- --- --- --- === D#4 --- --- --- --- --- --- ===',
     'G-4 --- --- --- --- --- --- === G-4 --- --- --- --- --- --- ===',
+  ],
+  cumulus: [
+    '--- --- G-4 === --- --- G-4 === --- --- G-4 === --- --- G-4 ===',
+    '--- --- C-5 === --- --- C-5 === --- --- A#4 === --- --- A#4 ===',
+    '--- --- D#5 === --- --- D#5 === --- --- D#5 === --- --- D#5 ===',
   ],
   perc: [
     '--- --- --- --- --- --- --- --- --- --- --- --- G-3 --- D#3 C-3',
@@ -85,6 +90,7 @@ function buildRig() {
   const limiter = new Limiter(ctx, Limiter.presets.Loud);
   const pad = new PolySynth(ctx, { ...PolySynth.presets.Pad, gain: 0.25 });
   const aurora = new AuroraReverb(ctx, { ...AuroraReverb.presets.Shimmer, mix: 0.35 });
+  const cumulus = new CumulusPoly(ctx, CumulusPoly.presets['Trance pluck']);
 
   chain(bass, drive, wah, delay, master);
   chain(bells, reverb, master);
@@ -93,10 +99,11 @@ function buildRig() {
   chain(drums, master);
   chain(kit, master);
   chain(pad, aurora, master);
+  chain(cumulus, aurora);
   chain(perc, delay);
   chain(master, eq, comp, saturator, tape, limiter, scope, ctx.destination);
 
-  rig = { bass, bells, drums, kit, perc, mallets, voice, pad, drive, wah, delay, reverb, aurora, orbit, pingPong, eq, comp, saturator, tape, limiter };
+  rig = { bass, bells, drums, kit, perc, mallets, voice, pad, cumulus, drive, wah, delay, reverb, aurora, orbit, pingPong, eq, comp, saturator, tape, limiter };
   const panels = document.getElementById('panels');
   for (const [name, module] of Object.entries(rig)) panels.append(panel(name, module));
 }
@@ -105,7 +112,7 @@ function buildRig() {
 
 function scheduleStep(i, t) {
   const cells = (line) => line.split(' ');
-  for (const track of ['bass', 'bells', 'mallets', 'voice', 'pad', 'perc']) {
+  for (const track of ['bass', 'bells', 'mallets', 'voice', 'pad', 'cumulus', 'perc']) {
     const lines = PATTERN[track];
     const inst = rig[track];
     for (const line of lines) {

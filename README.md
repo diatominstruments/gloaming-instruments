@@ -149,6 +149,7 @@ from nothing but `describe()`.
 | `modal-synth` | instrument | struck bars, bowls and bells: a high-Q bandpass bank per note, rung by a noise burst; wood, glass, steel and bell mode tables |
 | `formant-synth` | instrument | 1–6 detuned oscillators per note plus breath noise, through a tone lowpass and four vowel formants; sweep `vowel` from a to u to make it talk, or let each note glide in from `vowelStart` and an LFO move it; formant `shift` for bigger or smaller throats; poly or mono with glide |
 | `poly-synth` | instrument | 6-voice analog-style poly: saw, pulse (PWM from a saw minus its delayed self), sub and noise → 24 dB resonant lowpass with one ADSR on filter and amp; shared LFO with fade-in; switchable highpass and built-in chorus modes I / II / I+II |
+| `cumulus-poly` | instrument | 8-voice Oberheim-style poly: two oscillators (saw, pulse, triangle; detune, interval, cross-mod) plus sub and noise, per-voice drive, 12 or 24 dB multimode filter, separate filter and amp ADSRs, seeded per-voice drift; `mode` 'supersaw' makes osc 1 a JP-8000-style stack of seven detuned saws, spread in stereo and highpassed so the low end stays mono |
 | `perc-synth` | instrument | two oscillators cross-modulating each other's frequency, plus filtered noise; ADSR pitch envelope on osc 1, retriggered LFO sent to pitch, cross-mod, noise or amp; one-shot or gated |
 | `filter` | effect | resonant biquad |
 | `drive` | effect | tanh saturation + tone |

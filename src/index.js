@@ -7,6 +7,7 @@ import { ModalSynth } from './instruments/modal-synth.js';
 import { FormantSynth } from './instruments/formant-synth.js';
 import { PercSynth } from './instruments/perc-synth.js';
 import { PolySynth } from './instruments/poly-synth.js';
+import { CumulusPoly } from './instruments/cumulus-poly.js';
 import { Filter } from './effects/filter.js';
 import { Drive } from './effects/drive.js';
 import { Delay } from './effects/delay.js';
@@ -31,13 +32,13 @@ export { FM_ALGORITHMS } from './instruments/fm-synth.js';
 export { SAMPLE_BANKS, KIT_SLOTS } from './instruments/sample-banks.js';
 export { CHORUS_MODES } from './effects/chorus.js';
 export {
-  MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth, PolySynth,
+  MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth, PolySynth, CumulusPoly,
   Filter, Drive, Delay, Reverb, AuroraReverb, Tape, AutoWah, Orbit, Compressor, PingPong, Chorus,
   Limiter, EQ, Saturator,
 };
 
 const MODULES = [
-  MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth, PolySynth,
+  MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth, PolySynth, CumulusPoly,
   Filter, Drive, Delay, Reverb, AuroraReverb, Tape, AutoWah, Orbit, Compressor, PingPong, Chorus,
   Limiter, EQ, Saturator,
 ];
@@ -55,6 +56,7 @@ export const INSTRUMENT = Object.freeze({
   FORMANT_SYNTH: FormantSynth.id,
   PERC_SYNTH: PercSynth.id,
   POLY_SYNTH: PolySynth.id,
+  CUMULUS_POLY: CumulusPoly.id,
 });
 
 export const EFFECT = Object.freeze({
