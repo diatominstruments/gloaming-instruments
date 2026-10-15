@@ -41,16 +41,21 @@ export function rng(seed) {
 
 const noiseBuffers = new WeakMap();
 
-/** Two seconds of seeded white noise, built once per AudioContext. */
-export function noiseBuffer(ctx) {
-  let buffer = noiseBuffers.get(ctx);
+/**
+ * Seeded white noise, two seconds of it unless asked for more, built once
+ * per AudioContext and length. Every length starts with the same samples.
+ */
+export function noiseBuffer(ctx, seconds = 2) {
+  let buffers = noiseBuffers.get(ctx);
+  if (!buffers) noiseBuffers.set(ctx, (buffers = new Map()));
+  let buffer = buffers.get(seconds);
   if (!buffer) {
-    const length = ctx.sampleRate * 2;
+    const length = Math.round(ctx.sampleRate * seconds);
     buffer = ctx.createBuffer(1, length, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     const random = rng(0x5eed);
     for (let i = 0; i < length; i++) data[i] = random() * 2 - 1;
-    noiseBuffers.set(ctx, buffer);
+    buffers.set(seconds, buffer);
   }
   return buffer;
 }
