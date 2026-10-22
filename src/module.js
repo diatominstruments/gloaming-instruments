@@ -152,7 +152,7 @@ export class Module {
   static description = '';
   /**
    * Loose categories for browsing. Instruments use bass, lead, keys, pad,
-   * pluck, bell, mallet, voice, drums, percussion, sampler; effects use
+   * pluck, bell, mallet, voice, texture, drums, percussion, sampler; effects use
    * filter, distortion, dynamics, time, space, modulation, character.
    */
   static tags = [];

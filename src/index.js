@@ -8,6 +8,8 @@ import { FormantSynth } from './instruments/formant-synth.js';
 import { PercSynth } from './instruments/perc-synth.js';
 import { PolySynth } from './instruments/poly-synth.js';
 import { CumulusPoly } from './instruments/cumulus-poly.js';
+import { ChipSynth } from './instruments/chip-synth.js';
+import { TextureSynth } from './instruments/texture-synth.js';
 import { Filter } from './effects/filter.js';
 import { Drive } from './effects/drive.js';
 import { Delay } from './effects/delay.js';
@@ -39,12 +41,14 @@ export { CHORUS_MODES } from './effects/chorus.js';
 export { CHORDS } from './effects/resonator.js';
 export {
   MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth, PolySynth, CumulusPoly,
+  ChipSynth, TextureSynth,
   Filter, Drive, Delay, Reverb, AuroraReverb, Tape, AutoWah, Orbit, Compressor, PingPong, Chorus,
   Limiter, EQ, Saturator, Resonator, Phaser, RingMod, LoFi, Vocoder,
 };
 
 const MODULES = [
   MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth, PolySynth, CumulusPoly,
+  ChipSynth, TextureSynth,
   Filter, Drive, Delay, Reverb, AuroraReverb, Tape, AutoWah, Orbit, Compressor, PingPong, Chorus,
   Limiter, EQ, Saturator, Resonator, Phaser, RingMod, LoFi, Vocoder,
 ];
@@ -63,6 +67,8 @@ export const INSTRUMENT = Object.freeze({
   PERC_SYNTH: PercSynth.id,
   POLY_SYNTH: PolySynth.id,
   CUMULUS_POLY: CumulusPoly.id,
+  CHIP_SYNTH: ChipSynth.id,
+  TEXTURE_SYNTH: TextureSynth.id,
 });
 
 export const EFFECT = Object.freeze({

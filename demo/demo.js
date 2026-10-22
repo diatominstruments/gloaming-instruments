@@ -6,7 +6,7 @@
  */
 const {
   MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth, PolySynth, CumulusPoly,
-  Drive, Delay, Reverb, AuroraReverb, Tape, AutoWah, Orbit, Compressor, PingPong, Limiter, EQ, Saturator,
+  ChipSynth, TextureSynth, Drive, Delay, Reverb, AuroraReverb, Tape, AutoWah, Orbit, Compressor, PingPong, Limiter, EQ, Saturator,
   Chorus, Resonator, Phaser, RingMod, LoFi, Vocoder, DRUM, chain, parseNote, noteName, create,
   describe, matches, sanitizeParams,
 } = gloamingInstruments;
@@ -46,6 +46,12 @@ const PATTERN = {
   ],
   perc: [
     '--- --- --- --- --- --- --- --- --- --- --- --- G-3 --- D#3 C-3',
+  ],
+  chip: [
+    '--- --- G-5 --- A#5 --- G-5 F-5 D#5 --- --- --- D-5 --- C-5 ===',
+  ],
+  texture: [
+    'C-4 --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---',
   ],
   drums: {
     [DRUM.KICK]:       'x...x...x...x..o',
@@ -92,6 +98,8 @@ function buildRig() {
   const pad = new PolySynth(ctx, { ...PolySynth.presets.Pad, gain: 0.25 });
   const aurora = new AuroraReverb(ctx, { ...AuroraReverb.presets.Shimmer, mix: 0.35 });
   const cumulus = new CumulusPoly(ctx, CumulusPoly.presets['Trance pluck']);
+  const chip = new ChipSynth(ctx, { ...ChipSynth.presets.Lead, gain: 0.3 });
+  const texture = new TextureSynth(ctx, { ...TextureSynth.presets.Wind, attack: 0.6, gain: 0.35 });
   const resonator = new Resonator(ctx, { ...Resonator.presets['Sympathetic strings'], chord: 'minor', mix: 0.25 });
   const phaser = new Phaser(ctx, Phaser.presets.Classic);
   const ringMod = new RingMod(ctx, { ...RingMod.presets.Bell, mix: 0.3 });
@@ -110,10 +118,12 @@ function buildRig() {
   drums.output.connect(duck.sidechain);   // the drum synth ducks the pad
   chain(cumulus, phaser, aurora);
   chain(perc, ringMod, delay);
+  chain(chip, delay);
+  chain(texture, aurora);
   chain(master, eq, comp, saturator, tape, limiter, scope, ctx.destination);
 
   rig = {
-    bass, bells, drums, kit, perc, mallets, voice, pad, cumulus, drive, wah, delay, reverb, aurora, orbit, pingPong,
+    bass, bells, drums, kit, perc, mallets, voice, pad, cumulus, chip, texture, drive, wah, delay, reverb, aurora, orbit, pingPong,
     ensemble, vocoder, phaser, resonator, ringMod, lofi, duck, eq, comp, saturator, tape, limiter,
   };
   const panels = document.getElementById('panels');
@@ -124,7 +134,7 @@ function buildRig() {
 
 function scheduleStep(i, t) {
   const cells = (line) => line.split(' ');
-  for (const track of ['bass', 'bells', 'mallets', 'voice', 'pad', 'cumulus', 'perc']) {
+  for (const track of ['bass', 'bells', 'mallets', 'voice', 'pad', 'cumulus', 'perc', 'chip', 'texture']) {
     const lines = PATTERN[track];
     const inst = rig[track];
     for (const line of lines) {
