@@ -55,9 +55,10 @@ export const choice = (values, def, extra = {}) => ({ type: 'choice', values, de
  *   Hz  frequency        s   time           dB  decibels
  *   st  semitones        ct  cents          oct octaves
  *   m   metres           %   0..1 fraction  ×   multiplier
- *   :1  ratio (4 is 4:1)
+ *   :1  ratio (4 is 4:1)     note  MIDI note number (60 is middle C), to
+ *                                  show as a note name; may be fractional
  */
-export const UNITS = Object.freeze(['Hz', 's', 'dB', 'st', 'ct', 'oct', 'm', '%', '×', ':1']);
+export const UNITS = Object.freeze(['Hz', 's', 'dB', 'st', 'ct', 'oct', 'm', '%', '×', ':1', 'note']);
 
 /**
  * Whether a condition (`activeWhen`, or an instrument's `gated`) holds for a
@@ -100,6 +101,7 @@ export function describe(M) {
     presets: M.presets,
   };
   if (M.kind === 'instrument') Object.assign(info, { polyphony: M.polyphony, gated: M.gated, keys: M.keys });
+  if (M.kind === 'effect') info.sidechain = M.sidechain ?? null;
   if (M.banks) info.banks = M.banks;
   return JSON.parse(JSON.stringify(info));
 }
@@ -277,18 +279,35 @@ export class Instrument extends Module {
  * Effect — audio in on `this.input`, modified audio out on `this.output`.
  * Both are plain GainNodes, so an effect's internals can be rebuilt without
  * anything upstream or downstream having to reconnect.
+ *
+ * An effect driven by a second sound (a compressor ducked by the kick, a
+ * vocoder's carrier) declares `static sidechain`, and its instances get
+ * `this.sidechain`, another GainNode, for the app to connect that sound to:
+ *
+ *   kick.output.connect(compressor.sidechain);
+ *
+ * Which track feeds a sidechain is routing, like the order of a chain, so
+ * it's the app's to store; the module's params only say whether to listen.
  */
 export class Effect extends Module {
   static kind = 'effect';
+  /**
+   * The second input, if any: { label, description, activeWhen }, the same
+   * display fields a param has. `activeWhen` names the param values under
+   * which the sidechain is heard, so an app can hide its routing otherwise.
+   */
+  static sidechain = null;
 
   constructor(ctx, params) {
     super(ctx, params);
     this.input = new GainNode(ctx);
     this.output = new GainNode(ctx);
+    if (this.constructor.sidechain) this.sidechain = new GainNode(ctx);
   }
 
   dispose() {
     this.input.disconnect();
+    this.sidechain?.disconnect();
     super.dispose();
   }
 }

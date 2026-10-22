@@ -6,7 +6,8 @@
  */
 const {
   MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth, PolySynth, CumulusPoly,
-  Drive, Delay, Reverb, AuroraReverb, Tape, AutoWah, Orbit, Compressor, PingPong, Limiter, EQ, Saturator, DRUM, chain, parseNote, create,
+  Drive, Delay, Reverb, AuroraReverb, Tape, AutoWah, Orbit, Compressor, PingPong, Limiter, EQ, Saturator,
+  Chorus, Resonator, Phaser, RingMod, LoFi, Vocoder, DRUM, chain, parseNote, noteName, create,
   describe, matches, sanitizeParams,
 } = gloamingInstruments;
 
@@ -91,19 +92,30 @@ function buildRig() {
   const pad = new PolySynth(ctx, { ...PolySynth.presets.Pad, gain: 0.25 });
   const aurora = new AuroraReverb(ctx, { ...AuroraReverb.presets.Shimmer, mix: 0.35 });
   const cumulus = new CumulusPoly(ctx, CumulusPoly.presets['Trance pluck']);
+  const resonator = new Resonator(ctx, { ...Resonator.presets['Sympathetic strings'], chord: 'minor', mix: 0.25 });
+  const phaser = new Phaser(ctx, Phaser.presets.Classic);
+  const ringMod = new RingMod(ctx, { ...RingMod.presets.Bell, mix: 0.3 });
+  const lofi = new LoFi(ctx, { ...LoFi.presets['12-bit sampler'], mix: 0.5 });
+  const ensemble = new Chorus(ctx, Chorus.presets.Ensemble);
+  const vocoder = new Vocoder(ctx, { ...Vocoder.presets.Choir, mix: 0.5 });
+  const duck = new Compressor(ctx, Compressor.presets.Duck);
 
   chain(bass, drive, wah, delay, master);
   chain(bells, reverb, master);
   chain(mallets, orbit, reverb);
-  chain(voice, pingPong, master);
-  chain(drums, master);
-  chain(kit, master);
-  chain(pad, aurora, master);
-  chain(cumulus, aurora);
-  chain(perc, delay);
+  chain(voice, vocoder, ensemble, pingPong, master);
+  chain(drums, lofi, master);
+  chain(kit, resonator, master);
+  chain(pad, duck, aurora, master);
+  drums.output.connect(duck.sidechain);   // the drum synth ducks the pad
+  chain(cumulus, phaser, aurora);
+  chain(perc, ringMod, delay);
   chain(master, eq, comp, saturator, tape, limiter, scope, ctx.destination);
 
-  rig = { bass, bells, drums, kit, perc, mallets, voice, pad, cumulus, drive, wah, delay, reverb, aurora, orbit, pingPong, eq, comp, saturator, tape, limiter };
+  rig = {
+    bass, bells, drums, kit, perc, mallets, voice, pad, cumulus, drive, wah, delay, reverb, aurora, orbit, pingPong,
+    ensemble, vocoder, phaser, resonator, ringMod, lofi, duck, eq, comp, saturator, tape, limiter,
+  };
   const panels = document.getElementById('panels');
   for (const [name, module] of Object.entries(rig)) panels.append(panel(name, module));
 }
@@ -217,6 +229,13 @@ function panel(name, module) {
     box.append(section);
   }
 
+  // A sidechain is routing, which the app owns; here it just says it's there.
+  if (info.sidechain) {
+    const note = el('p', { className: 'sidechain', title: info.sidechain.description }, `⇠ sidechain: ${info.sidechain.label}`);
+    if (info.sidechain.activeWhen) refreshers.push(() => note.classList.toggle('inactive', !matches(info.sidechain.activeWhen, module.params)));
+    box.append(note);
+  }
+
   // Round-trip through the song format, to show what a song would store.
   const save = el('button', { textContent: 'Copy JSON' });
   save.onclick = () => {
@@ -280,6 +299,11 @@ function fmt(v, spec) {
     case '%': return `${Math.round(v * 100)}%`;
     case '×': return `×${num3(v)}`;
     case ':1': return `${num3(v)}:1`;
+    case 'note': {
+      const n = Math.round(v);
+      const cents = Math.round((v - n) * 100);
+      return cents ? `${noteName(n)} ${cents > 0 ? '+' : ''}${cents} ct` : noteName(n);
+    }
     case undefined: return sign + num3(v);
     default: return `${sign}${num3(v)} ${spec.unit}`;
   }

@@ -27,14 +27,14 @@ const IDLE = 1e-9;
  * has its second partial shaved to a double octave. A membrane is an ideal
  * drum head, and a tine a bar clamped at one end, like a kalimba's.
  */
-const MATERIALS = {
+export const MATERIALS = Object.freeze({
   wood:  [1, 3.93, 9.54, 16.3],
   glass: [1, 2.32, 3.86, 5.62, 7.58, 9.7],
   steel: [1, 2.76, 5.40, 8.93, 13.34, 18.64],
   bell:  [0.5, 1, 1.2, 1.5, 2, 2.51, 3, 4],
   membrane: [1, 1.594, 2.136, 2.296, 2.653, 2.918, 3.156, 3.501],
   tine:  [1, 6.267, 17.55, 34.39],
-};
+});
 
 /**
  * A material's partials with `stretch` applied: each moves in log-frequency

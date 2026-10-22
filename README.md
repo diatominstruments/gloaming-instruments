@@ -56,6 +56,7 @@ ahead of playback. Omitted or past times mean now.
 |---|---|
 | `static id`, `static kind`, `static version` | identity; bump `version` when a change would alter how saved songs sound |
 | `static params` | the param schema (below) |
+| `static sidechain`, `sidechain` | effects only: a second audio input, if the effect has one (below) |
 | `params` | current values |
 | `setParam(name, value, time)` | clamped to the schema |
 | `toJSON()` / `create(ctx, json)` | `{ id, version, params }`, the form a song stores |
@@ -63,6 +64,24 @@ ahead of playback. Omitted or past times mean now.
 | `dispose()` | |
 
 Events must arrive in time order, which any sequencer does naturally.
+
+### Sidechains
+
+An effect driven by a second sound declares `static sidechain`, and each
+instance has a `sidechain` GainNode for the app to connect that sound to:
+
+```js
+const duck = new Compressor(ctx, Compressor.presets.Duck);
+chain(pad, duck, ctx.destination);
+drums.output.connect(duck.sidechain);   // the kick ducks the pad
+```
+
+The declaration carries a `label`, a `description` and an `activeWhen`
+(the param values under which the sidechain is heard), so an app can offer
+a source picker only when it matters. `describe()` gives it as `sidechain`
+on every effect, `null` for those without one. Which track feeds a
+sidechain is routing, like the order of a chain, so the app stores it;
+the module's params only say whether to listen.
 
 ### Param schemas
 
@@ -116,7 +135,7 @@ static presets = { 'Acid': { cutoff: 300, resonance: 18, envMod: 3.5 }, … };
 | on a param | |
 |---|---|
 | `label`, `description` | display name (read under its group heading) and a sentence for tooltips |
-| `unit` | one of `UNITS`: `Hz s dB st ct oct m % × :1`; `%` values are 0..1 fractions, `:1` a ratio |
+| `unit` | one of `UNITS`: `Hz s dB st ct oct m % × :1 note`; `%` values are 0..1 fractions, `:1` a ratio, `note` a MIDI note number to show as a name |
 | `labels` | choices: display names for the stored values |
 | `catalog` | choices: the values are a growing library (sample banks), so offer a menu or list rather than buttons |
 | `categories` | choices: a heading per value, `{ value: heading }`, for sectioning a long list |
@@ -159,9 +178,14 @@ from nothing but `describe()`.
 | `tape` | effect | wow and flutter, tanh saturation, head rolloff, seeded hiss |
 | `auto-wah` | effect | resonant filter opened by an envelope follower built from a rectifying WaveShaper and a smoothing lowpass |
 | `orbit` | effect | HRTF panner circling the listener on two LFOs; for headphones |
-| `compressor` | effect | threshold/ratio/knee compression with makeup gain; `reduction` reads the current gain reduction for a meter |
+| `compressor` | effect | threshold/ratio/knee compression with makeup gain; `reduction` reads the current gain reduction for a meter; `detector` 'sidechain' takes the level from the sidechain instead, for ducking (DynamicsCompressorNode has no key input, so the key rides as a second channel beside the audio, held 80 dB down, and the node's linked detector does the rest) |
 | `ping-pong` | effect | stereo delay, repeats alternating left and right, darkening as they go |
-| `chorus` | effect | two delay lines swept in opposite directions by one triangle LFO; the classic modes in `CHORUS_MODES` |
+| `chorus` | effect | two delay lines swept in opposite directions by one triangle LFO, the classic modes in `CHORUS_MODES`; or `type` 'ensemble', three lines each swept by a slow and a fast sine a third of a cycle apart, panned left, centre and right, for string-machine blur |
+| `resonator` | effect | a bank of high-Q bandpasses tuned to a chord on `root` (string, pipe, bar, glass or bell partials per note), rung by the input, so drums and noise come out pitched and in key; power-normalized per partial, soft-clipped so in-tune input can't run away |
+| `phaser` | effect | 4–12 allpass stages per side swept by a sine LFO, the right side offset by `stereo`; no feedback (Web Audio loops cost a render quantum, which would comb), so `q` and stage count set the strength |
+| `ring-mod` | effect | the input multiplied by a carrier (sine, triangle, square, saw), left and right detuned by `spread`, with an LFO sweeping the carrier's pitch |
+| `vocoder` | effect | the input's spectrum, measured in 8–32 bands by envelope followers, imposed on a carrier: a built-in chord of detuned saws (`root`, `chord`), noise, or the sidechain; formant `shift`, band `width`, follower `response`, and `sibilance` passing the input's top end through |
+| `lo-fi` | effect | bit crushing (sweepable, 1–12 bits), sample-rate fold-over imitated by gating with a square at `rate`, a bandwidth lowpass, and seeded vinyl crackle |
 
 Anything random (noise, reverb impulses) is seeded, so a song renders the
 same on every play and every machine.

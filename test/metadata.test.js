@@ -34,6 +34,11 @@ for (const M of registry.values()) {
         assert.ok(M.polyphony === null || (Number.isInteger(M.polyphony) && M.polyphony > 0), 'polyphony');
         if (typeof M.gated !== 'boolean') checkCondition(M, 'gated', M.gated);
       }
+      if (M.sidechain) {
+        assert.equal(M.kind, 'effect', 'only effects take a sidechain');
+        assert.ok(M.sidechain.label && M.sidechain.description, 'sidechain label and description');
+        if (M.sidechain.activeWhen) checkCondition(M, 'sidechain', M.sidechain.activeWhen);
+      }
     });
 
     await t.test('params', () => {
@@ -110,6 +115,14 @@ test('manifest is plain JSON covering the registry', () => {
   const drums = list.find((m) => m.id === 'drum-synth');
   assert.equal(drums.keys[36], 'Kick');
   assert.equal(drums.gated, false);
+});
+
+test('effects describe their sidechain, or null', () => {
+  const list = manifest();
+  assert.equal(list.find((m) => m.id === 'delay').sidechain, null);
+  assert.deepEqual(list.find((m) => m.id === 'compressor').sidechain.activeWhen, { detector: 'sidechain' });
+  assert.deepEqual(list.find((m) => m.id === 'vocoder').sidechain.activeWhen, { carrier: 'external' });
+  assert.ok(!('sidechain' in list.find((m) => m.id === 'mono-synth')));
 });
 
 test('describe fills in defaults for a module without metadata', () => {

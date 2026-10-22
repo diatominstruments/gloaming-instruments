@@ -22,6 +22,11 @@ import { Chorus } from './effects/chorus.js';
 import { Limiter } from './effects/limiter.js';
 import { EQ } from './effects/eq.js';
 import { Saturator } from './effects/saturator.js';
+import { Resonator } from './effects/resonator.js';
+import { Phaser } from './effects/phaser.js';
+import { RingMod } from './effects/ring-mod.js';
+import { LoFi } from './effects/lo-fi.js';
+import { Vocoder } from './effects/vocoder.js';
 
 export {
   Module, Instrument, Effect, chain, num, choice, sanitizeParams, describe, matches, UNITS,
@@ -31,16 +36,17 @@ export { DRUM } from './instruments/drum-synth.js';
 export { FM_ALGORITHMS } from './instruments/fm-synth.js';
 export { SAMPLE_BANKS, KIT_SLOTS } from './instruments/sample-banks.js';
 export { CHORUS_MODES } from './effects/chorus.js';
+export { CHORDS } from './effects/resonator.js';
 export {
   MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth, PolySynth, CumulusPoly,
   Filter, Drive, Delay, Reverb, AuroraReverb, Tape, AutoWah, Orbit, Compressor, PingPong, Chorus,
-  Limiter, EQ, Saturator,
+  Limiter, EQ, Saturator, Resonator, Phaser, RingMod, LoFi, Vocoder,
 };
 
 const MODULES = [
   MonoSynth, FMSynth, DrumSynth, Sampler, ModalSynth, FormantSynth, PercSynth, PolySynth, CumulusPoly,
   Filter, Drive, Delay, Reverb, AuroraReverb, Tape, AutoWah, Orbit, Compressor, PingPong, Chorus,
-  Limiter, EQ, Saturator,
+  Limiter, EQ, Saturator, Resonator, Phaser, RingMod, LoFi, Vocoder,
 ];
 
 /** Every known module, instruments and effects alike, keyed by id. */
@@ -74,6 +80,11 @@ export const EFFECT = Object.freeze({
   LIMITER: Limiter.id,
   EQ: EQ.id,
   SATURATOR: Saturator.id,
+  RESONATOR: Resonator.id,
+  PHASER: Phaser.id,
+  RING_MOD: RingMod.id,
+  LO_FI: LoFi.id,
+  VOCODER: Vocoder.id,
 });
 
 /** Add a third-party instrument or effect, making it loadable from song files. */
