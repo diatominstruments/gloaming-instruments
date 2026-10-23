@@ -186,7 +186,7 @@ from nothing but `describe()`.
 | `resonator` | effect | a bank of high-Q bandpasses tuned to a chord on `root` (string, pipe, bar, glass or bell partials per note), rung by the input, so drums and noise come out pitched and in key; power-normalized per partial, soft-clipped so in-tune input can't run away |
 | `phaser` | effect | 4–12 allpass stages per side swept by a sine LFO, the right side offset by `stereo`; no feedback (Web Audio loops cost a render quantum, which would comb), so `q` and stage count set the strength |
 | `ring-mod` | effect | the input multiplied by a carrier (sine, triangle, square, saw), left and right detuned by `spread`, with an LFO sweeping the carrier's pitch |
-| `vocoder` | effect | the input's spectrum, measured in 8–32 bands by envelope followers, imposed on a carrier: a built-in chord of detuned saws (`root`, `chord`), noise, or the sidechain; formant `shift`, band `width`, follower `response`, and `sibilance` passing the input's top end through |
+| `vocoder` | effect | the input's spectrum, measured in 8–32 bands by envelope followers, imposed on a carrier: a built-in chord of detuned saws (`root`, `chord`), noise, or the sidechain (levelled on the way in, so a quiet track vocodes as loud as the chord); formant `shift`, band `width`, follower `response`, and `sibilance` passing the input's top end through |
 | `lo-fi` | effect | bit crushing (sweepable, 1–12 bits), sample-rate fold-over imitated by gating with a square at `rate`, a bandwidth lowpass, and seeded vinyl crackle |
 
 Anything random (noise, reverb impulses) is seeded, so a song renders the

@@ -1,6 +1,7 @@
 import { Effect, num, choice } from '../module.js';
 import { mtof, noiseBuffer, SMOOTH } from '../util.js';
 import { CHORDS, chordLabels } from './resonator.js';
+import { builtInMakeupDb } from './compressor.js';
 
 /** Centres of the lowest and highest bands; the rest are spaced evenly in log-frequency between. */
 const LOW_HZ = 120;
@@ -22,6 +23,21 @@ const RECTIFY = 4;
  * compensated by the opposite slope, so every carrier sounds balanced.
  */
 const CARRIER_SLOPES = { chord: -0.5, noise: 0.5, external: -0.5 };
+
+/**
+ * The external carrier's leveller: a hard compressor with its threshold
+ * far down, so anything from a quiet pad to a loud lead comes out within a
+ * dB or two of the same level, and makeup to put that level where the
+ * built-in chord sits. Without it, a track sending a tenth of a saw's
+ * level (as most do) would vocode a tenth as loud.
+ */
+const LEVELLER = { threshold: -50, ratio: 20, knee: 0, attack: 0.003, release: 0.25 };
+/**
+ * Where the leveller holds the carrier, in dB on the compressor's own
+ * detector (about the peak level): full scale, which puts a levelled synth
+ * pad at the chord's level.
+ */
+const LEVELLED_DB = 0;
 
 let rectifier = null;
 
@@ -56,6 +72,10 @@ const CASCADE = Math.sqrt(Math.SQRT2 - 1);
  *
  *   synth.output.connect(vocoder.sidechain);
  *
+ * An external carrier is levelled on the way in (see LEVELLER), so how
+ * loud the vocoded sound comes out doesn't depend on how loud the carrier
+ * is, only on the voice.
+ *
  * Each band of the carrier is compensated for how a saw's or noise's
  * spectrum falls or rises across the bands, so all of them come out
  * balanced, and the bank's gain follows the band count and width, so
@@ -77,6 +97,8 @@ export class Vocoder extends Effect {
   static label = 'Vocoder';
   static description = 'Makes the input speak through a carrier: a built-in chord, noise, or another track on the sidechain. Robot voices, talking synths and choirs.';
   static tags = ['filter', 'modulation', 'character'];
+  /** v2: the external carrier is levelled, so a quiet track vocodes as loud as the chord. */
+  static version = 2;
   static sidechain = {
     label: 'Carrier',
     description: 'The sound the input speaks through, when Carrier is External: usually a held synth chord.',
@@ -160,7 +182,10 @@ export class Vocoder extends Effect {
     this.noise = new AudioBufferSourceNode(ctx, { buffer: noiseBuffer(ctx), loop: true });
     this.noise.connect(this.switches.noise);
     this.noise.start();
-    this.sidechain.connect(this.switches.external);
+    const leveller = new DynamicsCompressorNode(ctx, LEVELLER);
+    const { threshold, ratio, knee } = LEVELLER;
+    const makeup = new GainNode(ctx, { gain: dbToGain(LEVELLED_DB - threshold - builtInMakeupDb(threshold, ratio, knee)) });
+    this.sidechain.connect(leveller).connect(makeup).connect(this.switches.external);
     this.chordLevel = new GainNode(ctx);
     this.chordLevel.connect(this.switches.chord);
     this.#buildChord();
