@@ -1,0 +1,13 @@
+Samples from the Freesound pack "Roland TR606 sampleset" by bdu
+https://freesound.org/people/bdu/packs/49/
+License: Creative Commons 0 (http://creativecommons.org/publicdomain/zero/1.0/)
+
+KICK.wav  https://freesound.org/s/808/
+SNARE.wav  https://freesound.org/s/816/
+SNARE_SOFT.wav  https://freesound.org/s/815/
+CLOSED_HAT.wav  https://freesound.org/s/802/
+CLOSED_HAT_SOFT.wav  https://freesound.org/s/801/
+OPEN_HAT.wav  https://freesound.org/s/814/
+LOW_TOM.wav  https://freesound.org/s/810/
+HIGH_TOM.wav  https://freesound.org/s/806/
+CYMBAL.wav  https://freesound.org/s/804/

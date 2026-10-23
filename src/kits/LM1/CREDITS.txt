@@ -1,0 +1,14 @@
+Samples from the Freesound pack "Linn LM-1 Drum Computer Samples (FREE)" by PJCmusic
+https://freesound.org/people/PJCmusic/packs/37785/
+License: Creative Commons 0 (http://creativecommons.org/publicdomain/zero/1.0/)
+
+KICK.wav  https://freesound.org/s/676918/
+SNARE.wav  https://freesound.org/s/676921/
+RIM.wav  https://freesound.org/s/676920/
+CLAP.wav  https://freesound.org/s/676911/
+CLOSED_HAT.wav  https://freesound.org/s/676916/
+OPEN_HAT.wav  https://freesound.org/s/676917/
+LOW_TOM.wav  https://freesound.org/s/676924/
+HIGH_TOM.wav  https://freesound.org/s/676923/
+TAMBOURINE.wav  https://freesound.org/s/676922/
+COWBELL.wav  https://freesound.org/s/676915/

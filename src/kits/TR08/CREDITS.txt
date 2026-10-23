@@ -1,0 +1,14 @@
+Samples from the Freesound pack "Roland TR08 100% gain, default tuning" by Karman_Lyne
+https://freesound.org/people/Karman_Lyne/packs/29226/
+License: Creative Commons 0 (http://creativecommons.org/publicdomain/zero/1.0/)
+
+KICK.wav  https://freesound.org/s/519306/
+SNARE.wav  https://freesound.org/s/520171/
+CLAP.wav  https://freesound.org/s/519305/
+RIM.wav  https://freesound.org/s/520172/
+CLOSED_HAT.wav  https://freesound.org/s/519308/
+OPEN_HAT.wav  https://freesound.org/s/519307/
+LOW_TOM.wav  https://freesound.org/s/520168/
+MID_TOM.wav  https://freesound.org/s/520174/
+HIGH_TOM.wav  https://freesound.org/s/520170/
+COWBELL.wav  https://freesound.org/s/519303/

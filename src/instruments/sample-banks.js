@@ -72,6 +72,53 @@ export const SAMPLE_BANKS = deepFreeze({
       { file: 'PERC.wav', note: 54, label: 'Perc' },
     ],
   },
+  TR08: {
+    label: 'TR-08',
+    type: 'kit',
+    zones: [
+      { file: 'KICK.wav', note: 36 },
+      { file: 'RIM.wav', note: 37 },
+      { file: 'SNARE.wav', note: 38 },
+      { file: 'CLAP.wav', note: 39 },
+      { file: 'CLOSED_HAT.wav', note: 42, choke: 'hat' },
+      { file: 'LOW_TOM.wav', note: 45 },
+      { file: 'OPEN_HAT.wav', note: 46, choke: 'hat' },
+      { file: 'MID_TOM.wav', note: 47 },
+      { file: 'HIGH_TOM.wav', note: 50 },
+      { file: 'COWBELL.wav', note: 54, label: 'Cowbell' },
+    ],
+  },
+  LM1: {
+    label: 'LM-1',
+    type: 'kit',
+    zones: [
+      { file: 'KICK.wav', note: 36 },
+      { file: 'RIM.wav', note: 37 },
+      { file: 'SNARE.wav', note: 38 },
+      { file: 'CLAP.wav', note: 39 },
+      { file: 'CLOSED_HAT.wav', note: 42, choke: 'hat' },
+      { file: 'LOW_TOM.wav', note: 45 },
+      { file: 'OPEN_HAT.wav', note: 46, choke: 'hat' },
+      { file: 'HIGH_TOM.wav', note: 50 },
+      { file: 'COWBELL.wav', note: 51, label: 'Cowbell' },
+      { file: 'TAMBOURINE.wav', note: 54 },
+    ],
+  },
+  606: {
+    label: 'TR-606',
+    type: 'kit',
+    zones: [
+      { file: 'KICK.wav', note: 36 },
+      { file: 'SNARE_SOFT.wav', note: 37, label: 'Soft snare' },
+      { file: 'SNARE.wav', note: 38 },
+      { file: 'CLOSED_HAT.wav', note: 42, choke: 'hat' },
+      { file: 'CLOSED_HAT_SOFT.wav', note: 44, label: 'Soft hat', choke: 'hat' },
+      { file: 'LOW_TOM.wav', note: 45 },
+      { file: 'OPEN_HAT.wav', note: 46, choke: 'hat' },
+      { file: 'CYMBAL.wav', note: 49, label: 'Cymbal' },
+      { file: 'HIGH_TOM.wav', note: 50 },
+    ],
+  },
 });
 
 /** A bank's zones with the kit shorthand expanded: every zone has lo, hi and root. */
